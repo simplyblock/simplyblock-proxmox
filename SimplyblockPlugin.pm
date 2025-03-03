@@ -14,6 +14,25 @@ use PVE::Tools qw(run_command);
 use base qw(PVE::Storage::Plugin);
 
 # Helpers
+sub untaint {
+    my ($value, $type) = @_;
+
+    my %patterns = (
+        num => qr/^(-?\d+)$/,
+        ip     => qr/^((?:\d{1,3}\.){3}\d{1,3})$/,
+        port   => qr/^(\d+)$/,
+        nqn    => qr/^([\w\.\-\:]+)$/
+    );
+
+    die "Unknown validation type: $type" unless exists $patterns{$type};
+
+    if ($value =~ $patterns{$type}) {
+        return $1;  # Return the untainted value
+    } else {
+        die "Invalid $type value: $value";
+    }
+}
+
 sub request {
     my ($scfg, $method, $path, $body) = @_;
     
@@ -73,14 +92,26 @@ sub snapshot_by_name {
 
 sub connect_lvol {
     my ($scfg, $id) = @_;
-    my $connect_info = request($scfg, "GET", "/lvol/connect/$id");
-    run_command(substr(@$connect_info[0]->{connect}, 5));
+    my $connect_info = request($scfg, "GET", "/lvol/connect/$id")->[0];
+
+    run_command([
+        "nvme", "connect",
+        "--reconnect-delay=" . untaint($connect_info->{"reconnect-delay"}, "num"),
+        "--ctrl-loss-tmo=" . untaint($connect_info->{"ctrl-loss-tmo"}, "num"),
+        "--nr-io-queues=" . untaint($connect_info->{"nr-io-queues"}, "num"),
+        "--transport=tcp",
+        "--traddr=" . untaint($connect_info->{ip}, "ip"),
+        "--trsvcid=" . untaint($connect_info->{port}, "port"),
+        "--nqn=" . untaint($connect_info->{nqn}, "nqn"),
+    ]);
 }
+
 
 sub disconnect_lvol {
     my ($scfg, $id) = @_;
     my $info = request($scfg, "GET", "/lvol/$id")->[0];
-    run_command("nvme disconnect -n $info->{nqn}");
+
+    run_command("nvme disconnect -n " . untaint($info->{nqn}, "nqn"));
 }
 
 

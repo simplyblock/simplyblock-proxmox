@@ -70,6 +70,12 @@ sub connect_lvol {
     run_command(substr(@$connect_info[0]->{connect}, 5));
 }
 
+sub disconnect_lvol {
+    my ($scfg, $id) = @_;
+    my $info = request($scfg, "GET", "/lvol/$id")->[0];
+    run_command("nvme disconnect -n $info->{nqn}");
+}
+
 
 # Configuration
 sub api {
@@ -189,11 +195,13 @@ sub alloc_image {
     die "illegal name '$name' - should be 'vm-$vmid-*'\n"
         if  $name && $name !~ m/^vm-$vmid-/;
 
-    request($scfg, "POST", "/lvol", {
+    my $id = request($scfg, "POST", "/lvol", {
         pool => $scfg->{pool},
         name => $name,
         size => $size * 1024,  # Size given in KiB
     }) or die("Failed to create image");
+
+    connect_lvol($scfg, $id);
 
     return $name;
 }
@@ -202,6 +210,7 @@ sub free_image {
     my ($class, $storeid, $scfg, $volname, $isBase) = @_;
 
     my $id = lvol_by_name($scfg, $volname);
+    disconnect_lvol($scfg, $id);
     request($scfg, "DELETE", "/lvol/$id");
 
     return undef;

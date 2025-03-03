@@ -64,6 +64,13 @@ sub lvol_by_name {
     return ($lvol->{id} or die("Volume not found\n"));
 };
 
+sub snapshot_by_name {
+    my ($scfg, $snap_name) = @_;
+    my $snapshots = request($scfg, "GET", "/snapshot") or die("Failed to list snapshots\n");
+    my ($snapshot) = grep { $snap_name eq $_->{snap_name} } @$snapshots;
+    return ($snapshot->{id} or die("Snapshot not found\n"));
+}
+
 sub connect_lvol {
     my ($scfg, $id) = @_;
     my $connect_info = request($scfg, "GET", "/lvol/connect/$id");
@@ -254,15 +261,35 @@ sub volume_resize {
 sub volume_snapshot {
     my ($class, $scfg, $storeid, $volname, $snap) = @_;
 
-    die "volume_snapshot unimplemented";
+    my $id = lvol_by_name($scfg, $volname);
+
+    request($scfg, "POST", "/snapshot", {
+        snapshot_name => $snap,
+        lvol_id => $id
+    }) or die("Failed to resize image");
 }
 
 sub volume_snapshot_rollback {
-    die "volume_snapshot_rollback unimplemented";
+    my ($class, $scfg, $storeid, $volname, $snap) = @_;
+
+    # delete $volname
+    $class->free_image($storeid, $scfg, $volname, 0);
+
+    # clone $snap
+    my $snap_id = snapshot_by_name($scfg, $snap);
+    my $id = request($scfg, "POST", "/snapshot/clone", {
+        snapshot_id => $snap_id,
+        clone_name => $volname
+    }) or die("Failed to restore snapshot");
+
+    connect_lvol($scfg, $id);
 }
 
 sub volume_snapshot_delete {
-    die "volume_snapshot_delete unimplemented";
+    my ($class, $scfg, $storeid, $volname, $snap, $running) = @_;
+
+    my $snap_id = snapshot_by_name($scfg, $snap);
+    request($scfg, "DELETE", "/snapshot/$snap_id") or die ("Failed to delete snapshot");
 }
 
 sub rename_volume {
@@ -281,7 +308,10 @@ sub rename_volume {
 sub volume_has_feature {
     my ($class, $scfg, $feature, $storeid, $volname, $snapname, $running, $opts) = @_;
 
-    return 1 if ($feature eq "sparseinit");
+    return 1 if exists({
+        snapshot => 1,
+        sparseinit => 1,
+    }->{$feature});
 
     die "unchecked feature '$feature'";
 }

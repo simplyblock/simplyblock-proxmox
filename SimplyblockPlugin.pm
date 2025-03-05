@@ -92,18 +92,20 @@ sub snapshot_by_name {
 
 sub connect_lvol {
     my ($scfg, $id) = @_;
-    my $connect_info = request($scfg, "GET", "/lvol/connect/$id")->[0];
+    my $connect_info = request($scfg, "GET", "/lvol/connect/$id");
 
-    run_command([
-        "nvme", "connect",
-        "--reconnect-delay=" . untaint($connect_info->{"reconnect-delay"}, "num"),
-        "--ctrl-loss-tmo=" . untaint($connect_info->{"ctrl-loss-tmo"}, "num"),
-        "--nr-io-queues=" . untaint($connect_info->{"nr-io-queues"}, "num"),
-        "--transport=tcp",
-        "--traddr=" . untaint($connect_info->{ip}, "ip"),
-        "--trsvcid=" . untaint($connect_info->{port}, "port"),
-        "--nqn=" . untaint($connect_info->{nqn}, "nqn"),
-    ]);
+    foreach (@$connect_info) {
+        run_command([
+            "nvme", "connect",
+            "--reconnect-delay=" . untaint($_->{"reconnect-delay"}, "num"),
+            "--ctrl-loss-tmo=" . untaint($_->{"ctrl-loss-tmo"}, "num"),
+            "--nr-io-queues=" . untaint($_->{"nr-io-queues"}, "num"),
+            "--transport=tcp",
+            "--traddr=" . untaint($_->{ip}, "ip"),
+            "--trsvcid=" . untaint($_->{port}, "port"),
+            "--nqn=" . untaint($_->{nqn}, "nqn"),
+        ]);
+    }
 }
 
 

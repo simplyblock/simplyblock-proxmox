@@ -210,7 +210,7 @@ sub parse_volname {
         return ('images', $1, $2, undef, undef, 0, 'raw');
     }
 
-    die "unable to parse lvm volume name '$volname'\n";
+    die "unable to parse volume name '$volname'\n";
 }
 
 sub filesystem_path {

@@ -195,8 +195,12 @@ sub deactivate_storage {
 }
 
 sub status {
-    # (total, avail, used, active) in KiB
-    return (0, 0, 0, 0);
+    my ($class, $storeid, $scfg, $cache) = @_;
+
+    my $capacity = request($scfg, "GET", "/cluster/capacity/$scfg->{cluster}")->[0]
+        or die("Cluster not responding");
+
+    return ($capacity->{size_total}, $capacity->{size_free}, $capacity->{size_used}, 1);
 }
 
 sub parse_volname {

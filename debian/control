@@ -1,0 +1,17 @@
+Source: simplyblock-proxmox
+Section: perl
+Priority: optional
+Standards-Version: 4.6.2
+Build-Depends: debhelper-compat (= 13)
+Maintainer: Max Schettler <max@simplyblock.io>
+
+Package: simplyblock-proxmox
+Depends: libjson-perl, libpve-storage-perl, librest-client-perl, nvme-cli
+Architecture: all
+Description: Simplyblock storage plugin for Proxmox
+ Simplyblock is an enterprise-grade NVMe-based high performance, low latency
+ storage solution. It provides NVMe-oF targets to its clients.
+ .
+ This plugin provides Proxmox access to a simplyblock cluster. It enables VM
+ and Container images to be stored as replicated logical volumes with minimal
+ configuration required.

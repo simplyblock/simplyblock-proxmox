@@ -1,0 +1,28 @@
+#!/bin/sh
+set -e
+
+SERVICE_NAME="pvedaemon"
+
+case "$1" in
+    configure)
+        # Reload systemd to pick up any changes
+        systemctl daemon-reload >/dev/null 2>&1 || true
+        
+        # Check if service is already running before restarting
+        if systemctl is-active --quiet "$SERVICE_NAME"; then
+            systemctl restart "$SERVICE_NAME" >/dev/null 2>&1 || true
+        fi
+        ;;
+
+    abort-upgrade|abort-remove|abort-deconfigure)
+        ;;
+
+    *)
+        echo "postinst called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

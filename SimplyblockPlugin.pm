@@ -35,7 +35,7 @@ sub _untaint {
 
 sub _request {
     my ($scfg, $method, $path, $body) = @_;
-    
+
     # TODO: Reuse client, place in $cache
     my $client = REST::Client->new({ follow => 1});
     $client->addHeader("Authorization", "$scfg->{cluster} $scfg->{secret}");

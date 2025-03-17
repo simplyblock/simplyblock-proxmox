@@ -14,7 +14,7 @@ use PVE::Tools qw(run_command);
 use base qw(PVE::Storage::Plugin);
 
 # Helpers
-sub untaint {
+sub _untaint {
     my ($value, $type) = @_;
 
     my %patterns = (
@@ -33,7 +33,7 @@ sub untaint {
     }
 }
 
-sub request {
+sub _request {
     my ($scfg, $method, $path, $body) = @_;
     
     # TODO: Reuse client, place in $cache
@@ -64,7 +64,7 @@ sub request {
     return $content->{"results"};
 }
 
-sub list_nvme {
+sub _list_nvme {
     my $json = '';
 
     eval {
@@ -76,44 +76,44 @@ sub list_nvme {
     return decode_json($json);
 }
 
-sub lvol_by_name {
+sub _lvol_by_name {
     my ($scfg, $volname) = @_;
-    my $lvols = request($scfg, "GET", "/lvol") or die("Failed to list volumes\n");
+    my $lvols = _request($scfg, "GET", "/lvol") or die("Failed to list volumes\n");
     my ($lvol) = grep { $volname eq $_->{lvol_name} } @$lvols;
     return ($lvol->{id} or die("Volume not found\n"));
 };
 
-sub snapshot_by_name {
+sub _snapshot_by_name {
     my ($scfg, $snap_name) = @_;
-    my $snapshots = request($scfg, "GET", "/snapshot") or die("Failed to list snapshots\n");
+    my $snapshots = _request($scfg, "GET", "/snapshot") or die("Failed to list snapshots\n");
     my ($snapshot) = grep { $snap_name eq $_->{snap_name} } @$snapshots;
     return ($snapshot->{id} or die("Snapshot not found\n"));
 }
 
-sub connect_lvol {
+sub _connect_lvol {
     my ($scfg, $id) = @_;
-    my $connect_info = request($scfg, "GET", "/lvol/connect/$id");
+    my $connect_info = _request($scfg, "GET", "/lvol/connect/$id");
 
     foreach (@$connect_info) {
         run_command([
             "nvme", "connect",
-            "--reconnect-delay=" . untaint($_->{"reconnect-delay"}, "num"),
-            "--ctrl-loss-tmo=" . untaint($_->{"ctrl-loss-tmo"}, "num"),
-            "--nr-io-queues=" . untaint($_->{"nr-io-queues"}, "num"),
+            "--reconnect-delay=" . _untaint($_->{"reconnect-delay"}, "num"),
+            "--ctrl-loss-tmo=" . _untaint($_->{"ctrl-loss-tmo"}, "num"),
+            "--nr-io-queues=" . _untaint($_->{"nr-io-queues"}, "num"),
             "--transport=tcp",
-            "--traddr=" . untaint($_->{ip}, "ip"),
-            "--trsvcid=" . untaint($_->{port}, "port"),
-            "--nqn=" . untaint($_->{nqn}, "nqn"),
+            "--traddr=" . _untaint($_->{ip}, "ip"),
+            "--trsvcid=" . _untaint($_->{port}, "port"),
+            "--nqn=" . _untaint($_->{nqn}, "nqn"),
         ]);
     }
 }
 
 
-sub disconnect_lvol {
+sub _disconnect_lvol {
     my ($scfg, $id) = @_;
-    my $info = request($scfg, "GET", "/lvol/$id")->[0];
+    my $info = _request($scfg, "GET", "/lvol/$id")->[0];
 
-    run_command("nvme disconnect -n " . untaint($info->{nqn}, "nqn"));
+    run_command("nvme disconnect -n " . _untaint($info->{nqn}, "nqn"));
 }
 
 
@@ -169,10 +169,10 @@ sub options {
 sub activate_storage {
     my ($class, $storeid, $scfg, $cache) = @_;
 
-    request($scfg, "GET", "/cluster/$scfg->{cluster}") or die("Cluster not responding");
-    my $lvols = request($scfg, "GET", "/lvol") or die("Failed to list volumes\n");
+    _request($scfg, "GET", "/cluster/$scfg->{cluster}") or die("Cluster not responding");
+    my $lvols = _request($scfg, "GET", "/lvol") or die("Failed to list volumes\n");
 
-    my $devices = list_nvme()->{Devices};
+    my $devices = _list_nvme()->{Devices};
 
     foreach (@$lvols) {
         my $lvol = $_;
@@ -182,7 +182,7 @@ sub activate_storage {
         # Skip already connected
         next if grep { $lvol->{id} eq $_->{ModelNumber} } @$devices;
 
-        connect_lvol($scfg, $lvol->{id});
+        _connect_lvol($scfg, $lvol->{id});
     }
 
     return 1;
@@ -199,7 +199,7 @@ sub deactivate_storage {
 sub status {
     my ($class, $storeid, $scfg, $cache) = @_;
 
-    my $capacity = request($scfg, "GET", "/cluster/capacity/$scfg->{cluster}")->[0]
+    my $capacity = _request($scfg, "GET", "/cluster/capacity/$scfg->{cluster}")->[0]
         or die("Cluster not responding");
 
     return ($capacity->{size_total}, $capacity->{size_free}, $capacity->{size_used}, 1);
@@ -218,8 +218,8 @@ sub parse_volname {
 sub filesystem_path {
     my ($class, $scfg, $volname, $snapname) = @_;
     my ($vtype, $name, $vmid) = $class->parse_volname($volname);
-    my $id = lvol_by_name($scfg, $volname);  # TODO: Store name <> id mapping?
-    my $devices = list_nvme()->{Devices};
+    my $id = _lvol_by_name($scfg, $volname);  # TODO: Store name <> id mapping?
+    my $devices = _list_nvme()->{Devices};
     my ($device) = grep { $id eq $_->{ModelNumber} } @$devices;
     my $path = $device->{DevicePath};
     return wantarray ? ($path, $vmid, $vtype) : $path;
@@ -239,13 +239,13 @@ sub alloc_image {
     die "illegal name '$name' - should be 'vm-$vmid-*'\n"
         if  $name && $name !~ m/^vm-$vmid-/;
 
-    my $id = request($scfg, "POST", "/lvol", {
+    my $id = _request($scfg, "POST", "/lvol", {
         pool => $scfg->{pool},
         name => $name,
         size => $size * 1024,  # Size given in KiB
     }) or die("Failed to create image");
 
-    connect_lvol($scfg, $id);
+    _connect_lvol($scfg, $id);
 
     return $name;
 }
@@ -253,9 +253,11 @@ sub alloc_image {
 sub free_image {
     my ($class, $storeid, $scfg, $volname, $isBase) = @_;
 
-    my $id = lvol_by_name($scfg, $volname);
-    disconnect_lvol($scfg, $id);
-    request($scfg, "DELETE", "/lvol/$id");
+    my $id = _lvol_by_name($scfg, $volname);
+    _disconnect_lvol($scfg, $id);
+    _request($scfg, "DELETE", "/lvol/$id");
+
+    # Await deletion
 
     return undef;
 }
@@ -267,7 +269,7 @@ sub clone_image {
 sub list_images {
     my ($class, $storeid, $scfg) = @_;
 
-    my $lvols = request($scfg, "GET", "/lvol") or die("Failed to list volumes\n");
+    my $lvols = _request($scfg, "GET", "/lvol") or die("Failed to list volumes\n");
 
     my $res = [];
 
@@ -288,9 +290,9 @@ sub list_images {
 sub volume_resize {
     my ($class, $scfg, $storeid, $volname, $size, $running) = @_;
 
-    my $id = lvol_by_name($scfg, $volname);
+    my $id = _lvol_by_name($scfg, $volname);
 
-    request($scfg, "PUT", "/lvol/resize/$id", {
+    _request($scfg, "PUT", "/lvol/resize/$id", {
         size => $size
     }) or die("Failed to resize image");
 }
@@ -298,9 +300,9 @@ sub volume_resize {
 sub volume_snapshot {
     my ($class, $scfg, $storeid, $volname, $snap) = @_;
 
-    my $id = lvol_by_name($scfg, $volname);
+    my $id = _lvol_by_name($scfg, $volname);
 
-    request($scfg, "POST", "/snapshot", {
+    _request($scfg, "POST", "/snapshot", {
         snapshot_name => $snap,
         lvol_id => $id
     }) or die("Failed to resize image");
@@ -313,31 +315,31 @@ sub volume_snapshot_rollback {
     $class->free_image($storeid, $scfg, $volname, 0);
 
     # clone $snap
-    my $snap_id = snapshot_by_name($scfg, $snap);
-    my $id = request($scfg, "POST", "/snapshot/clone", {
+    my $snap_id = _snapshot_by_name($scfg, $snap);
+    my $id = _request($scfg, "POST", "/snapshot/clone", {
         snapshot_id => $snap_id,
         clone_name => $volname
     }) or die("Failed to restore snapshot");
 
-    connect_lvol($scfg, $id);
+    _connect_lvol($scfg, $id);
 }
 
 sub volume_snapshot_delete {
     my ($class, $scfg, $storeid, $volname, $snap, $running) = @_;
 
-    my $snap_id = snapshot_by_name($scfg, $snap);
-    request($scfg, "DELETE", "/snapshot/$snap_id") or die ("Failed to delete snapshot");
+    my $snap_id = _snapshot_by_name($scfg, $snap);
+    _request($scfg, "DELETE", "/snapshot/$snap_id") or die ("Failed to delete snapshot");
 }
 
 sub rename_volume {
     my ($class, $scfg, $storeid, $source_volname, $target_vmid, $target_volname) = @_;
 
-    my $id = lvol_by_name($scfg, $source_volname);
+    my $id = _lvol_by_name($scfg, $source_volname);
 
     $target_volname = $class->find_free_diskname($storeid, $scfg, $target_vmid, "raw")
         if !$target_volname;
 
-    request($scfg, "PUT", "/lvol/resize/$id", {
+    _request($scfg, "PUT", "/lvol/resize/$id", {
         name => $target_volname
     }) or die("Failed to rename image");
 }

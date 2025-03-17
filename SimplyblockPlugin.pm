@@ -34,7 +34,9 @@ sub _untaint {
 }
 
 sub _request {
-    my ($scfg, $method, $path, $body) = @_;
+    my ($scfg, $method, $path, $body, $expect_failure) = @_;
+
+    $expect_failure //= 0;
 
     # TODO: Reuse client, place in $cache
     my $client = REST::Client->new({ follow => 1});
@@ -57,6 +59,11 @@ sub _request {
 
     if (($code < 200 or 300 <= $code) or (not $content->{status})) {
         my $msg = exists $content->{error} ? $content->{error} : "-";
+
+        if ($expect_failure) {
+            return $msg;
+        }
+
         warn("Request failed: $code, $msg");
         return;
     }
@@ -258,8 +265,18 @@ sub free_image {
     _request($scfg, "DELETE", "/lvol/$id");
 
     # Await deletion
+    for (my $i = 0; $i < 120; $i += 1) {
+        my $ret = _request($scfg, "GET", "/lvol/$id", undef, 1);
 
-    return undef;
+        if (ref($ret) eq 'ARRAY' && exists $ret->[0]{status} && ($ret->[0]{status} eq "in_deletion")) {
+            sleep(1);
+        } elsif ($ret eq "LVol not found: $id") {
+            return undef;  # Success
+        } else {
+            die("Failed to await LVol deletion");
+        }
+    }
+    die ("Timeout waiting for LVol deletion");
 }
 
 sub clone_image {

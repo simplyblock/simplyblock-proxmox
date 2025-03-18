@@ -342,7 +342,7 @@ sub volume_snapshot {
     _request($scfg, "POST", "/snapshot", {
         snapshot_name => $snap,
         lvol_id => $id
-    }) or die("Failed to resize image");
+    }) or die("Failed to create snapshot");
 }
 
 sub volume_snapshot_rollback {

@@ -184,7 +184,8 @@ sub activate_storage {
     foreach (@$lvols) {
         my $lvol = $_;
 
-	    next if $lvol->{lvol_name} !~ m/^vm-(\d+)-/;
+        next if $lvol->{lvol_name} !~ m/^vm-(\d+)-/;
+        next if $lvol->{status} ne "online";
 
         # Skip already connected
         next if grep { $lvol->{id} eq $_->{ModelNumber} } @$devices;

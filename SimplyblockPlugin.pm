@@ -128,10 +128,31 @@ sub _disconnect_lvol {
     run_command("nvme disconnect -n " . _untaint($info->{nqn}, "nqn"));
 }
 
+sub _delete_lvol {
+    my ($scfg, $id) = @_;
+
+    _disconnect_lvol($scfg, $id);
+    _request($scfg, "DELETE", "/lvol/$id");
+
+    # Await deletion
+    for (my $i = 0; $i < 120; $i += 1) {
+        my $ret = _request($scfg, "GET", "/lvol/$id", undef, 1);
+
+        if (ref($ret) eq 'ARRAY' && exists $ret->[0]{status} && ($ret->[0]{status} eq "in_deletion")) {
+            sleep(1);
+        } elsif ($ret eq "LVol not found: $id") {
+            return undef;  # Success
+        } else {
+            die("Failed to await LVol deletion");
+        }
+    }
+    die ("Timeout waiting for LVol deletion");
+}
+
 
 # Configuration
 sub api {
-	return 10;  # Only tested on this version so far.
+    return 10;  # Only tested on this version so far.
 }
 
 sub type {
@@ -266,23 +287,16 @@ sub alloc_image {
 sub free_image {
     my ($class, $storeid, $scfg, $volname, $isBase) = @_;
 
-    my $id = _lvol_by_name($scfg, $volname);
-    _disconnect_lvol($scfg, $id);
-    _request($scfg, "DELETE", "/lvol/$id");
+    my $lvol = _lvol_by_name($scfg, $volname);
+    _delete_lvol($scfg, $lvol->{id});
 
-    # Await deletion
-    for (my $i = 0; $i < 120; $i += 1) {
-        my $ret = _request($scfg, "GET", "/lvol/$id", undef, 1);
+    # Delete associated snapshots
+    my $snapshots = _request($scfg, "GET", "/snapshot") or die("Failed to list snapshots\n");
+    foreach (@$snapshots) {
+        next if ($_->{lvol}{id} ne $lvol->{id}) or ($_->{id} ne $lvol->{cloned_from_snap});
 
-        if (ref($ret) eq 'ARRAY' && exists $ret->[0]{status} && ($ret->[0]{status} eq "in_deletion")) {
-            sleep(1);
-        } elsif ($ret eq "LVol not found: $id") {
-            return undef;  # Success
-        } else {
-            die("Failed to await LVol deletion");
-        }
+        _request($scfg, "DELETE", "/snapshot/$_->{id}") or die("Failed to delete snapshot\n");
     }
-    die ("Timeout waiting for LVol deletion");
 }
 
 sub clone_image {
@@ -297,14 +311,14 @@ sub list_images {
     my $res = [];
 
     foreach (@$lvols) {
-	    next if $_->{lvol_name} !~ m/^vm-(\d+)-/;
+        next if $_->{lvol_name} !~ m/^vm-(\d+)-/;
 
         push @$res, {
             volid => "$storeid:$_->{lvol_name}",
             format => 'raw',
             size => $_->{size},
             vmid => $1,
-	    };
+        };
     }
 
     return $res;
@@ -335,16 +349,17 @@ sub volume_snapshot_rollback {
     my ($class, $scfg, $storeid, $volname, $snap) = @_;
 
     # delete $volname
-    $class->free_image($storeid, $scfg, $volname, 0);
+    my $id = _lvol_id_by_name($scfg, $volname);
+    _delete_lvol($scfg, $id);
 
     # clone $snap
     my $snap_id = _snapshot_by_name($scfg, $snap);
-    my $id = _request($scfg, "POST", "/snapshot/clone", {
+    my $new_id = _request($scfg, "POST", "/snapshot/clone", {
         snapshot_id => $snap_id,
         clone_name => $volname
     }) or die("Failed to restore snapshot");
 
-    _connect_lvol($scfg, $id);
+    _connect_lvol($scfg, $new_id);
 }
 
 sub volume_snapshot_delete {

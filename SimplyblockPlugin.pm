@@ -87,7 +87,12 @@ sub _lvol_by_name {
     my ($scfg, $volname) = @_;
     my $lvols = _request($scfg, "GET", "/lvol") or die("Failed to list volumes\n");
     my ($lvol) = grep { $volname eq $_->{lvol_name} } @$lvols;
-    return ($lvol->{id} or die("Volume not found\n"));
+    return ($lvol or die("Volume not found\n"));
+};
+
+sub _lvol_id_by_name {
+    my ($scfg, $volname) = @_;
+    return _lvol_by_name($scfg, $volname)->{id};
 };
 
 sub _snapshot_by_name {
@@ -226,7 +231,7 @@ sub parse_volname {
 sub filesystem_path {
     my ($class, $scfg, $volname, $snapname) = @_;
     my ($vtype, $name, $vmid) = $class->parse_volname($volname);
-    my $id = _lvol_by_name($scfg, $volname);  # TODO: Store name <> id mapping?
+    my $id = _lvol_id_by_name($scfg, $volname);
     my $devices = _list_nvme()->{Devices};
     my ($device) = grep { $id eq $_->{ModelNumber} } @$devices;
     my $path = $device->{DevicePath};
@@ -308,7 +313,7 @@ sub list_images {
 sub volume_resize {
     my ($class, $scfg, $storeid, $volname, $size, $running) = @_;
 
-    my $id = _lvol_by_name($scfg, $volname);
+    my $id = _lvol_id_by_name($scfg, $volname);
 
     _request($scfg, "PUT", "/lvol/resize/$id", {
         size => $size
@@ -318,7 +323,7 @@ sub volume_resize {
 sub volume_snapshot {
     my ($class, $scfg, $storeid, $volname, $snap) = @_;
 
-    my $id = _lvol_by_name($scfg, $volname);
+    my $id = _lvol_id_by_name($scfg, $volname);
 
     _request($scfg, "POST", "/snapshot", {
         snapshot_name => $snap,
@@ -352,7 +357,7 @@ sub volume_snapshot_delete {
 sub rename_volume {
     my ($class, $scfg, $storeid, $source_volname, $target_vmid, $target_volname) = @_;
 
-    my $id = _lvol_by_name($scfg, $source_volname);
+    my $id = _lvol_id_by_name($scfg, $source_volname);
 
     $target_volname = $class->find_free_diskname($storeid, $scfg, $target_vmid, "raw")
         if !$target_volname;

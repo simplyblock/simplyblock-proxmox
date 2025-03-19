@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use feature qw(fc);
+use List::Util qw(max);
 
 use Data::Dumper;
 use JSON;
@@ -14,6 +15,8 @@ use PVE::Tools qw(run_command);
 use base qw(PVE::Storage::Plugin);
 
 # Helpers
+my $MIN_LVOL_SIZE = 100 * (2 ** 20);
+
 sub _untaint {
     my ($value, $type) = @_;
 
@@ -264,7 +267,7 @@ sub create_base {
 }
 
 sub alloc_image {
-    my ( $class, $storeid, $scfg, $vmid, $fmt, $name, $size ) = @_;
+    my ( $class, $storeid, $scfg, $vmid, $fmt, $name, $size_kib ) = @_;
 
     die "unsupported format '$fmt'" if $fmt ne 'raw';
 
@@ -276,7 +279,7 @@ sub alloc_image {
     my $id = _request($scfg, "POST", "/lvol", {
         pool => $scfg->{pool},
         name => $name,
-        size => $size * 1024,  # Size given in KiB
+        size => max($size_kib * 1024, $MIN_LVOL_SIZE),
     }) or die("Failed to create image");
 
     _connect_lvol($scfg, $id);
@@ -330,7 +333,7 @@ sub volume_resize {
     my $id = _lvol_id_by_name($scfg, $volname);
 
     _request($scfg, "PUT", "/lvol/resize/$id", {
-        size => $size
+        size => max($size, $MIN_LVOL_SIZE)
     }) or die("Failed to resize image");
 }
 

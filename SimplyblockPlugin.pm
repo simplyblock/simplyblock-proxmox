@@ -155,7 +155,7 @@ sub _delete_lvol {
 
 # Configuration
 sub api {
-    return 10;  # Only tested on this version so far.
+    return 11;
 }
 
 sub type {

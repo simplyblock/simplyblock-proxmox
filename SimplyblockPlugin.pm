@@ -107,7 +107,13 @@ sub _snapshot_by_name {
 
 sub _connect_lvol {
     my ($scfg, $id) = @_;
+
+    my $devices = _list_nvme()->{Devices};
+    return 1 if grep { $id eq $_->{ModelNumber} } @$devices;
+
     my $connect_info = _request($scfg, "GET", "/lvol/connect/$id");
+
+    # TODO: Fail if either connection fails
 
     foreach (@$connect_info) {
         run_command([
@@ -205,21 +211,9 @@ sub options {
 sub activate_storage {
     my ($class, $storeid, $scfg, $cache) = @_;
 
-    _request($scfg, "GET", "/cluster/$scfg->{cluster}") or die("Cluster not responding");
-    my $lvols = _request($scfg, "GET", "/lvol") or die("Failed to list volumes\n");
-
-    my $devices = _list_nvme()->{Devices};
-
-    foreach (@$lvols) {
-        my $lvol = $_;
-
-        next if $lvol->{lvol_name} !~ m/^vm-(\d+)-/;
-        next if $lvol->{status} ne "online";
-
-        # Skip already connected
-        next if grep { $lvol->{id} eq $_->{ModelNumber} } @$devices;
-
-        _connect_lvol($scfg, $lvol->{id});
+    my $cluster = (_request($scfg, "GET", "/cluster/$scfg->{cluster}") or die("Cluster not responding"))->[0];
+    if ($cluster->{status} ne "active") {
+        die("Cluster not active");
     }
 
     return 1;
@@ -227,8 +221,6 @@ sub activate_storage {
 
 sub deactivate_storage {
     my ($class, $storeid, $scfg, $cache) = @_;
-
-    # TODO: disconnect volumes?
 
     return 1;
 }
@@ -256,8 +248,12 @@ sub filesystem_path {
     my ($class, $scfg, $volname, $snapname) = @_;
     my ($vtype, $name, $vmid) = $class->parse_volname($volname);
     my $id = _lvol_id_by_name($scfg, $volname);
+
+    _connect_lvol($scfg, $id);
+
     my $devices = _list_nvme()->{Devices};
     my ($device) = grep { $id eq $_->{ModelNumber} } @$devices;
+
     my $path = $device->{DevicePath};
     return wantarray ? ($path, $vmid, $vtype) : $path;
 }
@@ -394,6 +390,18 @@ sub volume_has_feature {
     }->{$feature});
 
     die "unchecked feature '$feature'";
+}
+
+sub activate_volume {
+    my ($class, $storeid, $scfg, $volname, $snapname, $cache) = @_;
+
+    _connect_lvol($scfg, _lvol_id_by_name($scfg, $volname));
+}
+
+sub deactivate_volume {
+    my ($class, $storeid, $scfg, $volname, $snapname, $cache) = @_;
+
+    _disconnect_lvol($scfg, _lvol_id_by_name($scfg, $volname));
 }
 
 1;

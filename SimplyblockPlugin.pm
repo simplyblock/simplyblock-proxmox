@@ -114,13 +114,12 @@ sub _connect_lvol {
     my $connect_info = _request($scfg, "GET", "/lvol/connect/$id");
 
     # TODO: Fail if either connection fails
-
     foreach (@$connect_info) {
         run_command([
             "nvme", "connect",
-            "--reconnect-delay=" . _untaint($_->{"reconnect-delay"}, "num"),
-            "--ctrl-loss-tmo=" . _untaint($_->{"ctrl-loss-tmo"}, "num"),
-            "--nr-io-queues=" . _untaint($_->{"nr-io-queues"}, "num"),
+            "--reconnect-delay=" . ($scfg->{'reconnect-delay'} // _untaint($_->{"reconnect-delay"}, "num")),
+            "--ctrl-loss-tmo=" . ($scfg->{'control-loss-timeout'} // _untaint($_->{"ctrl-loss-tmo"}, "num")),
+            "--nr-io-queues=" . ($scfg->{'number-io-queues'} // _untaint($_->{"nr-io-queues"}, "num")),
             "--transport=tcp",
             "--traddr=" . _untaint($_->{ip}, "ip"),
             "--trsvcid=" . _untaint($_->{port}, "port"),
@@ -195,6 +194,21 @@ sub properties {
             description => "Cluster access token",
             type => 'string',
         },
+        'reconnect-delay' => {
+            type => 'integer',
+            minimum => 1,
+            optional => 1,
+        },
+        'control-loss-timeout' => {
+            type => 'integer',
+            minimum => -1,
+            optional => 1
+        },
+        'number-io-queues' => {
+            type => 'integer',
+            minimum => 1,
+            optional => 1
+        },
     };
 }
 
@@ -204,6 +218,9 @@ sub options {
         cluster => { optional => 0 },
         pool => { optional => 0 },
         secret => { optional => 0 },
+        'reconnect-delay' => { optional => 1 },
+        'control-loss-timeout' => { optional => 1 },
+        'number-io-queues' => { optional => 1 },
     };
 }
 

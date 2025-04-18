@@ -128,7 +128,7 @@ sub _disconnect_lvol {
     my ($scfg, $id) = @_;
     my $info = _request($scfg, "GET", "/lvol/$id")->[0];
 
-    run_command("nvme disconnect -n " . _untaint($info->{nqn}, "nqn"));
+    run_command(["nvme", "disconnect", "-n",  _untaint($info->{nqn}, "nqn")], outfunc => sub{});
 }
 
 sub _delete_lvol {

@@ -9,6 +9,7 @@ use List::Util qw(max);
 use Data::Dumper;
 use JSON;
 use REST::Client;
+use Carp::Assert;
 
 use PVE::Tools qw(run_command);
 
@@ -16,6 +17,10 @@ use base qw(PVE::Storage::Plugin);
 
 # Helpers
 my $MIN_LVOL_SIZE = 100 * (2 ** 20);
+my $UUID_PATTERN = qr/[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}/;
+my $NQN_PATTERN = qr/^[\d\w\.-]+:$UUID_PATTERN:lvol:(?<volume_id>$UUID_PATTERN)$/;
+my $IP_PATTERN = qr/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/;
+my $CONTROLLER_ADDRESS_PATTERN = qr/^traddr=(?<traddr>$IP_PATTERN),trsvcid=(?P<trsvcid>\d{1,5}),src_addr=(?P<src_addr>$IP_PATTERN)$/;
 
 sub _untaint {
     my ($value, $type) = @_;
@@ -24,7 +29,8 @@ sub _untaint {
         num => qr/^(-?\d+)$/,
         ip     => qr/^((?:\d{1,3}\.){3}\d{1,3})$/,
         port   => qr/^(\d+)$/,
-        nqn    => qr/^([\w\.\-\:]+)$/
+        nqn    => qr/^([\w\.\-\:]+)$/,
+        path    => qr/^([\w\d\/]+)$/,
     );
 
     die "Unknown validation type: $type" unless exists $patterns{$type};
@@ -35,6 +41,29 @@ sub _untaint {
         die "Invalid $type value: $value";
     }
 }
+
+sub _json_command {
+    my $json = '';
+
+    eval {
+    run_command(@_,
+        outfunc => sub { $json .= shift },
+    );
+    };
+
+    return decode_json($json);
+}
+
+sub _match_pattern {
+    my ($str, $pattern) = @_;
+
+    if ($str =~ $pattern) {
+        my %captures = %+;
+        return \%captures;
+    } else {
+        return;
+    }
+};
 
 sub _request {
     my ($scfg, $method, $path, $body, $expect_failure) = @_;
@@ -74,16 +103,25 @@ sub _request {
     return $content->{"results"};
 }
 
-sub _list_nvme {
-    my $json = '';
+sub _device_connections() {
+    my $devices = _json_command(['nvme', 'list', '--output-format=json', '--verbose'])->{Devices};
+    assert(scalar(@$devices) == 1);
+    my $subsystems = $devices->[0]->{Subsystems};
 
-    eval {
-    run_command(['nvme', 'list', '--output=json'],
-        outfunc => sub { $json .= shift },
-    );
-    };
+    my $result = {};
+    foreach my $subsystem (@$subsystems) {
+        next if (scalar(@{$subsystem->{Namespaces}}) != 1);
 
-    return decode_json($json);
+        $result->{_match_pattern($subsystem->{SubsystemNQN}, $NQN_PATTERN)->{volume_id}} = {
+            nqn => _untaint($subsystem->{SubsystemNQN}, 'nqn'),
+            path => "/dev/" . _untaint($subsystem->{Namespaces}[0]->{NameSpace}, 'path'),
+            controllers => [map {
+                my $match = _match_pattern($_->{Address}, $CONTROLLER_ADDRESS_PATTERN);
+                $_ = _untaint($match->{traddr}, 'ip') . ":" . _untaint($match->{trsvcid}, 'port');
+            } @{$subsystem->{Controllers}}],
+        };
+    }
+    return $result;
 }
 
 sub _lvol_by_name {
@@ -91,12 +129,12 @@ sub _lvol_by_name {
     my $lvols = _request($scfg, "GET", "/lvol") or die("Failed to list volumes\n");
     my ($lvol) = grep { $volname eq $_->{lvol_name} } @$lvols;
     return ($lvol or die("Volume not found\n"));
-};
+}
 
 sub _lvol_id_by_name {
     my ($scfg, $volname) = @_;
     return _lvol_by_name($scfg, $volname)->{id};
-};
+}
 
 sub _snapshot_by_name {
     my ($scfg, $snap_name) = @_;
@@ -108,8 +146,7 @@ sub _snapshot_by_name {
 sub _connect_lvol {
     my ($scfg, $id) = @_;
 
-    my $devices = _list_nvme()->{Devices};
-    return 1 if grep { $id eq $_->{ModelNumber} } @$devices;
+    return 1 if (exists _device_connections()->{$id});
 
     my $connect_info = _request($scfg, "GET", "/lvol/connect/$id");
 
@@ -131,9 +168,10 @@ sub _connect_lvol {
 
 sub _disconnect_lvol {
     my ($scfg, $id) = @_;
-    my $info = _request($scfg, "GET", "/lvol/$id")->[0];
+    my $device = _device_connections()->{$id};
+    return if (!defined($device));
 
-    run_command(["nvme", "disconnect", "-n",  _untaint($info->{nqn}, "nqn")], outfunc => sub{});
+    run_command(["nvme", "disconnect", "-n",  $device->{nqn}], outfunc => sub{});
 }
 
 sub _delete_lvol {
@@ -268,10 +306,7 @@ sub filesystem_path {
 
     _connect_lvol($scfg, $id);
 
-    my $devices = _list_nvme()->{Devices};
-    my ($device) = grep { $id eq $_->{ModelNumber} } @$devices;
-
-    my $path = $device->{DevicePath};
+    my $path = _device_connections()->{$id}->{path};
     return wantarray ? ($path, $vmid, $vtype) : $path;
 }
 

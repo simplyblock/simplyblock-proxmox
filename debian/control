@@ -6,7 +6,7 @@ Build-Depends: debhelper-compat (= 13)
 Maintainer: Max Schettler <max@simplyblock.io>
 
 Package: simplyblock-proxmox
-Depends: libjson-perl, libpve-storage-perl, librest-client-perl, nvme-cli
+Depends: libjson-perl, libpve-storage-perl, librest-client-perl, libcarp-assert-perl, nvme-cli
 Architecture: all
 Description: Simplyblock storage plugin for Proxmox
  Simplyblock is an enterprise-grade NVMe-based high performance, low latency

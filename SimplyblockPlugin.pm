@@ -157,6 +157,7 @@ sub _connect_lvol {
             "--reconnect-delay=" . ($scfg->{'reconnect-delay'} // _untaint($_->{"reconnect-delay"}, "num")),
             "--ctrl-loss-tmo=" . ($scfg->{'control-loss-timeout'} // _untaint($_->{"ctrl-loss-tmo"}, "num")),
             "--nr-io-queues=" . ($scfg->{'number-io-queues'} // _untaint($_->{"nr-io-queues"}, "num")),
+            "--keep-alive-tmo=" . ($scfg->{'keep-alive-timeout'} // _untaint($_->{"keep-alive-tmo"}, "num")),
             "--transport=tcp",
             "--traddr=" . _untaint($_->{ip}, "ip"),
             "--trsvcid=" . _untaint($_->{port}, "port"),
@@ -247,6 +248,11 @@ sub properties {
             minimum => 1,
             optional => 1
         },
+        'keep-alive-timeout' => {
+            type => 'integer',
+            minimum => -1,
+            optional => 1
+        },
     };
 }
 
@@ -259,6 +265,7 @@ sub options {
         'reconnect-delay' => { optional => 1 },
         'control-loss-timeout' => { optional => 1 },
         'number-io-queues' => { optional => 1 },
+        'keep-alive-timeout' => { optional => 1 },
     };
 }
 

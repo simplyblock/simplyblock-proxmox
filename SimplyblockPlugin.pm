@@ -105,6 +105,10 @@ sub _request {
 
 sub _device_connections() {
     my $devices = _json_command(['nvme', 'list', '--output-format=json', '--verbose'])->{Devices};
+
+    if (scalar(@$devices) == 0) {
+        return {};
+    }
     assert(scalar(@$devices) == 1);
     my $subsystems = $devices->[0]->{Subsystems};
 
@@ -146,22 +150,28 @@ sub _snapshot_by_name {
 sub _connect_lvol {
     my ($scfg, $id) = @_;
 
-    return 1 if (exists _device_connections()->{$id});
-
+    my $connections = _device_connections();
+    my $connected_controllers = (exists $connections->{$id}) ?
+            $connections->{$id}->{controllers} : [];
     my $connect_info = _request($scfg, "GET", "/lvol/connect/$id");
 
     # TODO: Fail if either connection fails
-    foreach (@$connect_info) {
+    foreach my $info (@$connect_info) {
+        my $ip = _untaint($info->{ip}, "ip");
+        my $port = _untaint($info->{port}, "port");
+
+        next if (grep {"$ip:$port" eq $_} @$connected_controllers);
+
         run_command([
             "nvme", "connect",
-            "--reconnect-delay=" . ($scfg->{'reconnect-delay'} // _untaint($_->{"reconnect-delay"}, "num")),
-            "--ctrl-loss-tmo=" . ($scfg->{'control-loss-timeout'} // _untaint($_->{"ctrl-loss-tmo"}, "num")),
-            "--nr-io-queues=" . ($scfg->{'number-io-queues'} // _untaint($_->{"nr-io-queues"}, "num")),
-            "--keep-alive-tmo=" . ($scfg->{'keep-alive-timeout'} // _untaint($_->{"keep-alive-tmo"}, "num")),
+            "--reconnect-delay=" . ($scfg->{'reconnect-delay'} // _untaint($info->{'reconnect-delay'}, 'num')),
+            "--ctrl-loss-tmo=" . ($scfg->{'control-loss-timeout'} // _untaint($info->{'ctrl-loss-tmo'}, 'num')),
+            "--nr-io-queues=" . ($scfg->{'number-io-queues'} // _untaint($info->{'nr-io-queues'}, 'num')),
+            "--keep-alive-tmo=" . ($scfg->{'keep-alive-timeout'} // _untaint($info->{'keep-alive-tmo'}, 'num')),
             "--transport=tcp",
-            "--traddr=" . _untaint($_->{ip}, "ip"),
-            "--trsvcid=" . _untaint($_->{port}, "port"),
-            "--nqn=" . _untaint($_->{nqn}, "nqn"),
+            "--traddr=" . $ip,
+            "--trsvcid=" . $port,
+            "--nqn=" . _untaint($info->{nqn}, "nqn"),
         ]);
     }
 }
@@ -194,6 +204,17 @@ sub _delete_lvol {
         }
     }
     die ("Timeout waiting for LVol deletion");
+}
+
+
+sub _check_device_connections {
+    my ($scfg) = @_;
+
+    my $connections = _device_connections();
+    foreach my $id (keys %$connections) {
+        next if (scalar(@{scalar($connections->{$id}->{controllers})}) == 2);
+        _connect_lvol($scfg, $id);
+    }
 }
 
 
@@ -289,6 +310,12 @@ sub deactivate_storage {
 
 sub status {
     my ($class, $storeid, $scfg, $cache) = @_;
+
+    my $cluster = _request($scfg, "GET", "/cluster/$scfg->{cluster}")->[0]
+        or die("Cluster not responding");
+    if ($cluster->{ha_type} eq 'ha') {
+        _check_device_connections($scfg);
+    }
 
     my $capacity = _request($scfg, "GET", "/cluster/capacity/$scfg->{cluster}")->[0]
         or die("Cluster not responding");

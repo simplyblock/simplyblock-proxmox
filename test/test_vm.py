@@ -54,3 +54,9 @@ def test_full_clone(vm):
     clone_id = '9001'
     cc(['qm', 'clone', vm, clone_id])
     cc(['qm', 'destroy', clone_id])
+
+def test_linked_clone(vm):
+    clone_id = '9001'
+    cc(['qm', 'clone', '--full=false', vm, clone_id])
+    cc(['qm', 'destroy', clone_id])
+

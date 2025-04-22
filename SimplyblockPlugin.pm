@@ -21,6 +21,7 @@ my $UUID_PATTERN = qr/[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}/;
 my $NQN_PATTERN = qr/^[\d\w\.-]+:$UUID_PATTERN:lvol:(?<volume_id>$UUID_PATTERN)$/;
 my $IP_PATTERN = qr/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/;
 my $CONTROLLER_ADDRESS_PATTERN = qr/^traddr=(?<traddr>$IP_PATTERN),trsvcid=(?P<trsvcid>\d{1,5}),src_addr=(?P<src_addr>$IP_PATTERN)$/;
+my $VOLUME_NAME_PATTERN = qr/^(?<name>vm-(?<vmid>\d+)-(?<suffix>\S+))$/;
 
 sub _untaint {
     my ($value, $type) = @_;
@@ -326,8 +327,9 @@ sub status {
 sub parse_volname {
     my ( $class, $volname ) = @_;
 
-    if ($volname =~ m/^(vm-(\d+)-\S+)$/) {
-        return ('images', $1, $2, undef, undef, 0, 'raw');
+    my $match = _match_pattern($volname, $VOLUME_NAME_PATTERN);
+    if ($match) {
+        return ('images', $match->{name}, $match->{vmid}, undef, undef, 0, 'raw');
     }
 
     die "unable to parse volume name '$volname'\n";
@@ -385,7 +387,29 @@ sub free_image {
 }
 
 sub clone_image {
-    die "clone_image unimplemented";
+    my ($class, $scfg, $storeid, $volname, $clone_vmid, $existing_snapshot) = @_;
+
+    my $snapshot;
+    if ($existing_snapshot) {
+        $snapshot = $existing_snapshot;
+    } else {
+        $snapshot = "clone-snapshot-$clone_vmid";
+        $class->volume_snapshot($scfg, $storeid, $volname, $snapshot);
+    }
+    my $snapshot_id = _snapshot_by_name($scfg, "$volname-$snapshot");
+
+    my $match = _match_pattern($volname, $VOLUME_NAME_PATTERN);
+    my $clone_volume_name = "vm-$clone_vmid-$match->{suffix}";
+    _request($scfg, "POST", "/snapshot/clone", {
+        snapshot_id => $snapshot_id,
+        clone_name => $clone_volume_name
+    }) or die("Failed to clone snapshot");
+
+    if (!$existing_snapshot) {
+        $class->volume_snapshot_delete($scfg, $storeid, $volname, $snapshot);
+    }
+
+    return $clone_volume_name;
 }
 
 sub list_images {
@@ -471,6 +495,7 @@ sub volume_has_feature {
     my ($class, $scfg, $feature, $storeid, $volname, $snapname, $running, $opts) = @_;
 
     return 1 if exists({
+        clone => 1,
         copy => 1,
         snapshot => 1,
         sparseinit => 1,

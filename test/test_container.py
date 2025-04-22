@@ -55,3 +55,8 @@ def test_full_clone(container):
     clone_id = '9001'
     cc(['pct', 'clone', container, clone_id])
     cc(['pct', 'destroy', clone_id])
+
+def test_linked_clone(container):
+    clone_id = '9001'
+    cc(['pct', 'clone', '--full=false', container, clone_id])
+    cc(['pct', 'destroy', clone_id])

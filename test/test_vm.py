@@ -1,4 +1,4 @@
-from subprocess import CalledProcessError, check_output as co, STDOUT
+from subprocess import CalledProcessError, check_output as co, check_call as cc, STDOUT
 
 import pytest
 
@@ -49,3 +49,8 @@ def test_resize_grow(vm):
 def test_resize_shrink(vm):
     output = co(['qm', 'resize', vm, 'scsi0', '2G'], stderr=STDOUT, text=True).strip()
     assert output == "shrinking disks is not supported"
+
+def test_full_clone(vm):
+    clone_id = '9001'
+    cc(['qm', 'clone', vm, clone_id])
+    cc(['qm', 'destroy', clone_id])

@@ -1,4 +1,4 @@
-from subprocess import check_output as co, CalledProcessError
+from subprocess import check_call as cc, check_output as co, CalledProcessError
 
 import pytest
 
@@ -50,3 +50,8 @@ def test_resize_grow(container):
 def test_resize_shrink(container):
     with pytest.raises(CalledProcessError):
         co(['pct', 'resize', container, 'rootfs', '2G'])
+
+def test_full_clone(container):
+    clone_id = '9001'
+    cc(['pct', 'clone', container, clone_id])
+    cc(['pct', 'destroy', clone_id])

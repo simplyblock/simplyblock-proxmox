@@ -471,6 +471,7 @@ sub volume_has_feature {
     my ($class, $scfg, $feature, $storeid, $volname, $snapname, $running, $opts) = @_;
 
     return 1 if exists({
+        copy => 1,
         snapshot => 1,
         sparseinit => 1,
     }->{$feature});

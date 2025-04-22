@@ -155,7 +155,7 @@ sub _connect_lvol {
             $connections->{$id}->{controllers} : [];
     my $connect_info = _request($scfg, "GET", "/lvol/connect/$id");
 
-    # TODO: Fail if either connection fails
+    # If first connection fails, secondary will not be connected.
     foreach my $info (@$connect_info) {
         my $ip = _untaint($info->{ip}, "ip");
         my $port = _untaint($info->{port}, "port");

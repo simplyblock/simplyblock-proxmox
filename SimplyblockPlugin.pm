@@ -425,7 +425,7 @@ sub volume_snapshot {
     my $id = _lvol_id_by_name($scfg, $volname);
 
     _request($scfg, "POST", "/snapshot", {
-        snapshot_name => $snap,
+        snapshot_name => "$volname-$snap",
         lvol_id => $id
     }) or die("Failed to create snapshot");
 }
@@ -438,7 +438,7 @@ sub volume_snapshot_rollback {
     _delete_lvol($scfg, $id);
 
     # clone $snap
-    my $snap_id = _snapshot_by_name($scfg, $snap);
+    my $snap_id = _snapshot_by_name($scfg, "$volname-$snap");
     my $new_id = _request($scfg, "POST", "/snapshot/clone", {
         snapshot_id => $snap_id,
         clone_name => $volname
@@ -450,7 +450,7 @@ sub volume_snapshot_rollback {
 sub volume_snapshot_delete {
     my ($class, $scfg, $storeid, $volname, $snap, $running) = @_;
 
-    my $snap_id = _snapshot_by_name($scfg, $snap);
+    my $snap_id = _snapshot_by_name($scfg, "$volname-$snap");
     _request($scfg, "DELETE", "/snapshot/$snap_id") or die ("Failed to delete snapshot");
 }
 

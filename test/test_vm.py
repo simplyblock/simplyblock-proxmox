@@ -1,4 +1,4 @@
-from subprocess import CalledProcessError, check_output as co, check_call as cc, STDOUT
+from subprocess import check_call as cc, check_output as co, check_call as cc, STDOUT
 
 import pytest
 
@@ -60,3 +60,13 @@ def test_linked_clone(vm):
     cc(['qm', 'clone', '--full=false', vm, clone_id])
     cc(['qm', 'destroy', clone_id])
 
+def test_template(vm):
+    template_id = '9001'
+    cc(['qm', 'clone', vm, template_id])
+    cc(['qm', 'template', template_id])
+
+    clone_id = '9002'
+    cc(['qm', 'clone', template_id, clone_id])
+
+    cc(['qm', 'destroy', clone_id])
+    cc(['qm', 'destroy', template_id])

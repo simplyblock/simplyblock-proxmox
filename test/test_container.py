@@ -60,3 +60,14 @@ def test_linked_clone(container):
     clone_id = '9001'
     cc(['pct', 'clone', '--full=false', container, clone_id])
     cc(['pct', 'destroy', clone_id])
+
+def test_template(container):
+    template_id = '9001'
+    cc(['pct', 'clone', container, template_id])
+    cc(['pct', 'template', template_id])
+
+    clone_id = '9002'
+    cc(['pct', 'clone', template_id, clone_id])
+
+    cc(['pct', 'destroy', clone_id])
+    cc(['pct', 'destroy', template_id])

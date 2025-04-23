@@ -348,7 +348,8 @@ sub filesystem_path {
 }
 
 sub create_base {
-    die "create_base unimplemented";
+    my ($class, $storeid, $scfg, $volname) = @_;
+    return $volname;
 }
 
 sub alloc_image {
@@ -500,9 +501,10 @@ sub volume_has_feature {
         copy => 1,
         snapshot => 1,
         sparseinit => 1,
+        template => 1,
     }->{$feature});
 
-    die "unchecked feature '$feature'";
+    return 0;
 }
 
 sub activate_volume {

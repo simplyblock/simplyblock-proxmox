@@ -288,6 +288,7 @@ sub options {
         'control-loss-timeout' => { optional => 1 },
         'number-io-queues' => { optional => 1 },
         'keep-alive-timeout' => { optional => 1 },
+        'shared' => { optional => 1 },
     };
 }
 

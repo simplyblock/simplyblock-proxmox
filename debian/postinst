@@ -1,17 +1,17 @@
-#!/bin/sh
-set -e
+#!/bin/bash
+set -eu
 
-SERVICE_NAME="pvedaemon"
+SERVICES=(pvedaemon pve-ha-lrm pve-ha-crm)
 
 case "$1" in
     configure)
-        # Reload systemd to pick up any changes
         systemctl daemon-reload >/dev/null 2>&1 || true
-        
-        # Check if service is already running before restarting
-        if systemctl is-active --quiet "$SERVICE_NAME"; then
-            systemctl restart "$SERVICE_NAME" >/dev/null 2>&1 || true
-        fi
+
+	for service in ${SERVICES[@]}; do
+		if systemctl is-active --quiet "$service"; then
+		    systemctl restart "$service" >/dev/null 2>&1 || true
+		fi
+	done
         ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)

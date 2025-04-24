@@ -1,3 +1,22 @@
+simplyblock-proxmox (0.3.0-1) unstable; urgency=medium
+
+  * Bump API version
+  * Suppress nvme-cli output
+  * Connect devices on demand
+  * Allow configuration of connection parameters
+  * Extend local device lookup
+  * Add use of keep-alive-timeout
+  * Repair failed device connections
+  * Document connection semantics
+  * Enable full clones of volumes
+  * Internally prefix snapshots with volume name
+  * Enable CoW image clones
+  * Allow marking storage as shared
+  * Enable template storage
+  * Ensure changed plugin is loaded
+
+ -- Max Schettler <max@simplyblock.io>  Thu, 24 Apr 2025 16:10:13 +0200
+
 simplyblock-proxmox (0.2.0-1) unstable; urgency=medium
 
   * Indicate helpers

@@ -417,7 +417,10 @@ sub clone_image {
 sub list_images {
     my ($class, $storeid, $scfg) = @_;
 
-    my $lvols = _request($scfg, "GET", "/lvol") or die("Failed to list volumes\n");
+    my $lvols = [
+        grep { $_->{pool_name} eq $scfg->{pool} }
+        @{_request($scfg, "GET", "/lvol")or die("Failed to list volumes\n")}
+    ];
 
     my $res = [];
 

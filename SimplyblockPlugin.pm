@@ -275,6 +275,30 @@ sub properties {
             minimum => -1,
             optional => 1
         },
+        'max-rw-iops' => {
+            type => 'integer',
+            minimum => 0,
+            default => 0,
+            optional => 1
+        },
+        'max-rw-mbytes' => {
+            type => 'integer',
+            minimum => 0,
+            default => 0,
+            optional => 1
+        },
+        'max-r-mbytes' => {
+            type => 'integer',
+            minimum => 0,
+            default => 0,
+            optional => 1
+        },
+        'max-w-mbytes' => {
+            type => 'integer',
+            minimum => 0,
+            default => 0,
+            optional => 1
+        },
     };
 }
 
@@ -288,6 +312,10 @@ sub options {
         'control-loss-timeout' => { optional => 1 },
         'number-io-queues' => { optional => 1 },
         'keep-alive-timeout' => { optional => 1 },
+        'max-rw-iops' => { optional => 1 },
+        'max-rw-mbytes' => { optional => 1 },
+        'max-r-mbytes' => { optional => 1 },
+        'max-w-mbytes' => { optional => 1 },
         'shared' => { optional => 1 },
     };
 }
@@ -366,6 +394,10 @@ sub alloc_image {
         pool => $scfg->{pool},
         name => $name,
         size => max($size_kib * 1024, $MIN_LVOL_SIZE),
+        max_rw_iops => ${scfg}->{'max-rw-iops'},
+        max_rw_mbytes => ${scfg}->{'max-rw-mbytes'},
+        max_r_mbytes => ${scfg}->{'max-r-mbytes'},
+        max_w_mbytes => ${scfg}->{'max-w-mbytes'},
     }) or die("Failed to create image");
 
     _connect_lvol($scfg, $id);

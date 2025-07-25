@@ -141,6 +141,21 @@ sub _lvol_id_by_name {
     return _lvol_by_name($scfg, $volname)->{id};
 }
 
+sub _lvols_by_pool {
+    my ($scfg, $pool_name) = @_;
+    return [
+        grep { $_->{pool_name} eq $pool_name }
+        @{_request($scfg, "GET", "/lvol")or die("Failed to list volumes\n")}
+    ];
+}
+
+sub _pool_by_name {
+    my ($scfg, $pool_name) = @_;
+    my $pools = _request($scfg, "GET", "/pool") or die("Failed to list pools\n");
+    my ($pool) = grep { $pool_name eq $_->{pool_name} } @$pools;
+    return ($pool or die("Pool not found\n"));
+}
+
 sub _snapshot_by_name {
     my ($scfg, $snap_name) = @_;
     my $snapshots = _request($scfg, "GET", "/snapshot") or die("Failed to list snapshots\n");
@@ -347,10 +362,17 @@ sub status {
         _check_device_connections($scfg);
     }
 
-    my $capacity = _request($scfg, "GET", "/cluster/capacity/$scfg->{cluster}")->[0]
-        or die("Cluster not responding");
+    my $lvols = _lvols_by_pool($scfg, $scfg->{pool});
+    my $used = 0;
 
-    return ($capacity->{size_total}, $capacity->{size_free}, $capacity->{size_used}, 1);
+    foreach (@$lvols) {
+        $used += _request($scfg, "GET", "/lvol/capacity/$_->{uuid}")->{stats}[-1]{used} or die('Failed to access pool');
+    }
+
+    my $total = (_pool_by_name($scfg, $scfg->{pool})->{pool_max_size} or $cluster->{cluster_max_size});
+    my $free = $total - $used;
+
+    return ($total, $free, $used, 1);
 }
 
 sub parse_volname {
@@ -449,11 +471,7 @@ sub clone_image {
 sub list_images {
     my ($class, $storeid, $scfg) = @_;
 
-    my $lvols = [
-        grep { $_->{pool_name} eq $scfg->{pool} }
-        @{_request($scfg, "GET", "/lvol")or die("Failed to list volumes\n")}
-    ];
-
+    my $lvols = _lvols_by_pool($scfg, $scfg->{pool});
     my $res = [];
 
     foreach (@$lvols) {

@@ -358,7 +358,9 @@ sub status {
 
     my $cluster = _request($scfg, "GET", "/cluster/$scfg->{cluster}")->[0]
         or die("Cluster not responding");
-    if ($cluster->{ha_type} eq 'ha') {
+
+    my $active = $cluster->{status} eq 'active';
+    if ($active && $cluster->{ha_type} eq 'ha') {
         _check_device_connections($scfg);
     }
 
@@ -372,7 +374,7 @@ sub status {
     my $total = (_pool_by_name($scfg, $scfg->{pool})->{pool_max_size} or $cluster->{cluster_max_size});
     my $free = $total - $used;
 
-    return ($total, $free, $used, 1);
+    return ($total, $free, $used, $active);
 }
 
 sub parse_volname {

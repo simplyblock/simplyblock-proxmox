@@ -154,8 +154,8 @@ sub _lvol_id_by_name {
 sub _lvols_by_pool {
     my ($scfg, $pool_name) = @_;
     return [
-        grep { $_->{pool_name} eq $pool_name }
-        @{_request($scfg, "GET", "/lvol")or die("Failed to list volumes\n")}
+        grep { $pool_name eq $_->{pool_name} }
+        @{_request($scfg, "GET", "/lvol") or die("Failed to list volumes\n")}
     ];
 }
 

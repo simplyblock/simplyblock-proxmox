@@ -553,7 +553,7 @@ sub rename_volume {
     $target_volname = $class->find_free_diskname($storeid, $scfg, $target_vmid, "raw")
         if !$target_volname;
 
-    _request($scfg, "PUT", "/lvol/resize/$id", {
+    _request($scfg, "PUT", "/lvol/id", {
         name => $target_volname
     }) or die("Failed to rename image");
 }

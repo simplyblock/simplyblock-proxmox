@@ -23,6 +23,16 @@ my $IP_PATTERN = qr/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/;
 my $CONTROLLER_ADDRESS_PATTERN = qr/^traddr=(?<traddr>$IP_PATTERN),trsvcid=(?P<trsvcid>\d{1,5}),src_addr=(?P<src_addr>$IP_PATTERN)$/;
 my $VOLUME_NAME_PATTERN = qr/^(?<name>vm-(?<vmid>\d+)-(?<suffix>\S+))$/;
 
+sub _one {
+    my @results = @_;
+    if (@results == 0) {
+        die "No results found when exactly one was expected";
+    } elsif (@results > 1) {
+        die "Multiple results found when exactly one was expected: " . scalar(@results);
+    }
+    return $results[0];
+}
+
 sub _untaint {
     my ($value, $type) = @_;
 
@@ -131,8 +141,8 @@ sub _device_connections() {
 
 sub _lvol_by_name {
     my ($scfg, $volname) = @_;
-    my $lvols = _request($scfg, "GET", "/lvol") or die("Failed to list volumes\n");
-    my ($lvol) = grep { $volname eq $_->{lvol_name} } @$lvols;
+    my $lvols = _lvols_by_pool($scfg, $scfg->{pool});
+    my $lvol = _one(grep { $volname eq $_->{lvol_name} } @$lvols);
     return ($lvol or die("Volume not found\n"));
 }
 

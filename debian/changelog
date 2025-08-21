@@ -1,3 +1,11 @@
+simplyblock-proxmox (0.4.2-1) unstable; urgency=medium
+
+  * Fix lvol lookup with multi-client deployments
+  * Fix inconsistency
+  * Fix volume rename
+
+ -- root <max@simplyblock.io>  Thu, 21 Aug 2025 11:42:50 +0200
+
 simplyblock-proxmox (0.4.1-1) unstable; urgency=medium
 
   * Fix storage utilization listing

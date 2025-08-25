@@ -481,16 +481,22 @@ sub clone_image {
 }
 
 sub list_images {
-    my ($class, $storeid, $scfg) = @_;
+    my ($class, $storeid, $scfg, $vmid, $vollist, $cache) = @_;
 
     my $lvols = _lvols_by_pool($scfg, $scfg->{pool});
     my $res = [];
 
     foreach (@$lvols) {
         next if $_->{lvol_name} !~ m/^vm-(\d+)-/;
+        my $volid = "$storeid:$_->{lvol_name}";
+        if (defined($vollist)) {
+            next if !(grep { $_ eq $volid } @$vollist);
+        } else {
+            next if (defined $vmid) && ($1 ne $vmid);
+        }
 
         push @$res, {
-            volid => "$storeid:$_->{lvol_name}",
+            volid => $volid,
             format => 'raw',
             size => $_->{size},
             vmid => $1,

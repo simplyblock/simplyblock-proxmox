@@ -377,7 +377,7 @@ sub status {
     my $used = 0;
 
     foreach (@$lvols) {
-        $used += _request($scfg, "GET", "/lvol/capacity/$_->{uuid}")->{stats}[-1]{used} or die('Failed to access pool');
+        $used += _request($scfg, "GET", "/lvol/capacity/$_->{uuid}")->{stats}[-1]{used} // die('Failed to access pool');
     }
 
     my $total = (_pool_by_name($scfg, $scfg->{pool})->{pool_max_size} or $cluster->{cluster_max_size});

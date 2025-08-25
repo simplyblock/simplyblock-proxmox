@@ -10,6 +10,7 @@ use Data::Dumper;
 use JSON;
 use REST::Client;
 use Carp::Assert;
+use Params::Validate qw(:all);
 
 use PVE::Tools qw(run_command);
 
@@ -34,7 +35,7 @@ sub _one {
 }
 
 sub _untaint {
-    my ($value, $type) = @_;
+    my ($value, $type) = validate_pos(@_, 1, 1);
 
     my %patterns = (
         num => qr/^(-?\d+)$/,
@@ -66,7 +67,7 @@ sub _json_command {
 }
 
 sub _match_pattern {
-    my ($str, $pattern) = @_;
+    my ($str, $pattern) = validate_pos(@_, 1, 1);
 
     if ($str =~ $pattern) {
         my %captures = %+;
@@ -77,9 +78,7 @@ sub _match_pattern {
 };
 
 sub _request {
-    my ($scfg, $method, $path, $body, $expect_failure) = @_;
-
-    $expect_failure //= 0;
+    my ($scfg, $method, $path, $body, $expect_failure) = validate_pos(@_, 1, 1, 1, 0, {default => 0});
 
     # TODO: Reuse client, place in $cache
     my $client = REST::Client->new({ follow => 1});
@@ -140,19 +139,19 @@ sub _device_connections() {
 }
 
 sub _lvol_by_name {
-    my ($scfg, $volname) = @_;
+    my ($scfg, $volname) = validate_pos(@_, 1, 1);
     my $lvols = _lvols_by_pool($scfg, $scfg->{pool});
     my $lvol = _one(grep { $volname eq $_->{lvol_name} } @$lvols);
     return ($lvol or die("Volume not found\n"));
 }
 
 sub _lvol_id_by_name {
-    my ($scfg, $volname) = @_;
+    my ($scfg, $volname) = validate_pos(@_, 1, 1);
     return _lvol_by_name($scfg, $volname)->{id};
 }
 
 sub _lvols_by_pool {
-    my ($scfg, $pool_name) = @_;
+    my ($scfg, $pool_name) = validate_pos(@_, 1, 1);
     return [
         grep { $pool_name eq $_->{pool_name} }
         @{_request($scfg, "GET", "/lvol") or die("Failed to list volumes\n")}
@@ -160,21 +159,21 @@ sub _lvols_by_pool {
 }
 
 sub _pool_by_name {
-    my ($scfg, $pool_name) = @_;
+    my ($scfg, $pool_name) = validate_pos(@_, 1, 1);
     my $pools = _request($scfg, "GET", "/pool") or die("Failed to list pools\n");
     my ($pool) = grep { $pool_name eq $_->{pool_name} } @$pools;
     return ($pool or die("Pool not found\n"));
 }
 
 sub _snapshot_by_name {
-    my ($scfg, $snap_name) = @_;
+    my ($scfg, $snap_name) = validate_pos(@_, 1, 1);
     my $snapshots = _request($scfg, "GET", "/snapshot") or die("Failed to list snapshots\n");
     my ($snapshot) = grep { $snap_name eq $_->{snap_name} } @$snapshots;
     return ($snapshot->{id} or die("Snapshot not found\n"));
 }
 
 sub _connect_lvol {
-    my ($scfg, $id) = @_;
+    my ($scfg, $id) = validate_pos(@_, 1, 1);
 
     my $connections = _device_connections();
     my $connected_controllers = (exists $connections->{$id}) ?
@@ -204,7 +203,7 @@ sub _connect_lvol {
 
 
 sub _disconnect_lvol {
-    my ($scfg, $id) = @_;
+    my ($scfg, $id) = validate_pos(@_, 1, 1);
     my $device = _device_connections()->{$id};
     return if (!defined($device));
 
@@ -212,7 +211,7 @@ sub _disconnect_lvol {
 }
 
 sub _delete_lvol {
-    my ($scfg, $id) = @_;
+    my ($scfg, $id) = validate_pos(@_, 1, 1);
 
     _disconnect_lvol($scfg, $id);
     _request($scfg, "DELETE", "/lvol/$id");
@@ -234,7 +233,7 @@ sub _delete_lvol {
 
 
 sub _check_device_connections {
-    my ($scfg) = @_;
+    my ($scfg) = validate_pos(@_, 1);
 
     my $connections = _device_connections();
     foreach my $id (keys %$connections) {
@@ -347,7 +346,7 @@ sub options {
 
 # Storage
 sub activate_storage {
-    my ($class, $storeid, $scfg, $cache) = @_;
+    my ($class, $storeid, $scfg, $cache) = validate_pos(@_, 1, 1, 1, 1);
 
     my $cluster = (_request($scfg, "GET", "/cluster/$scfg->{cluster}") or die("Cluster not responding"))->[0];
     if ($cluster->{status} ne "active") {
@@ -358,13 +357,13 @@ sub activate_storage {
 }
 
 sub deactivate_storage {
-    my ($class, $storeid, $scfg, $cache) = @_;
+    my ($class, $storeid, $scfg, $cache) = validate_pos(@_, 1, 1, 1, 1);
 
     return 1;
 }
 
 sub status {
-    my ($class, $storeid, $scfg, $cache) = @_;
+    my ($class, $storeid, $scfg, $cache) = validate_pos(@_, 1, 1, 1, 1);
 
     my $cluster = _request($scfg, "GET", "/cluster/$scfg->{cluster}")->[0]
         or die("Cluster not responding");
@@ -388,7 +387,7 @@ sub status {
 }
 
 sub parse_volname {
-    my ( $class, $volname ) = @_;
+    my ( $class, $volname ) = validate_pos(@_, 1, 1);
 
     my $match = _match_pattern($volname, $VOLUME_NAME_PATTERN);
     if ($match) {
@@ -399,7 +398,7 @@ sub parse_volname {
 }
 
 sub filesystem_path {
-    my ($class, $scfg, $volname, $snapname) = @_;
+    my ($class, $scfg, $volname, $snapname) = validate_pos(@_, 1, 1, 1, 0);
     my ($vtype, $name, $vmid) = $class->parse_volname($volname);
     my $id = _lvol_id_by_name($scfg, $volname);
 
@@ -410,12 +409,12 @@ sub filesystem_path {
 }
 
 sub create_base {
-    my ($class, $storeid, $scfg, $volname) = @_;
+    my ($class, $storeid, $scfg, $volname) = validate_pos(@_, 1, 1, 1, 1);
     return $volname;
 }
 
 sub alloc_image {
-    my ( $class, $storeid, $scfg, $vmid, $fmt, $name, $size_kib ) = @_;
+    my ($class, $storeid, $scfg, $vmid, $fmt, $name, $size_kib) = validate_pos(@_, 1, 1, 1, 1, 1, 0, 1);
 
     die "unsupported format '$fmt'" if $fmt ne 'raw';
 
@@ -440,7 +439,7 @@ sub alloc_image {
 }
 
 sub free_image {
-    my ($class, $storeid, $scfg, $volname, $isBase) = @_;
+    my ($class, $storeid, $scfg, $volname, $isBase, $file_format) = validate_pos(@_, 1, 1, 1, 1, 1, 0);
 
     my $lvol = _lvol_by_name($scfg, $volname);
     _delete_lvol($scfg, $lvol->{id});
@@ -455,7 +454,7 @@ sub free_image {
 }
 
 sub clone_image {
-    my ($class, $scfg, $storeid, $volname, $clone_vmid, $existing_snapshot) = @_;
+    my ($class, $scfg, $storeid, $volname, $clone_vmid, $existing_snapshot) = validate_pos(@_, 1, 1, 1, 1, 1, 0);
 
     my $snapshot;
     if ($existing_snapshot) {
@@ -481,7 +480,7 @@ sub clone_image {
 }
 
 sub list_images {
-    my ($class, $storeid, $scfg, $vmid, $vollist, $cache) = @_;
+    my ($class, $storeid, $scfg, $vmid, $vollist, $cache) = validate_pos(@_, 1, 1, 1, 0, 0, 0);
 
     my $lvols = _lvols_by_pool($scfg, $scfg->{pool});
     my $res = [];
@@ -507,7 +506,7 @@ sub list_images {
 }
 
 sub volume_resize {
-    my ($class, $scfg, $storeid, $volname, $size, $running) = @_;
+    my ($class, $scfg, $storeid, $volname, $size, $running) = validate_pos(@_, 1, 1, 1, 1, 1, 1);
 
     my $id = _lvol_id_by_name($scfg, $volname);
 
@@ -517,7 +516,7 @@ sub volume_resize {
 }
 
 sub volume_snapshot {
-    my ($class, $scfg, $storeid, $volname, $snap) = @_;
+    my ($class, $scfg, $storeid, $volname, $snap) = validate_pos(@_, 1, 1, 1, 1, 1);
 
     my $id = _lvol_id_by_name($scfg, $volname);
 
@@ -528,7 +527,7 @@ sub volume_snapshot {
 }
 
 sub volume_snapshot_rollback {
-    my ($class, $scfg, $storeid, $volname, $snap) = @_;
+    my ($class, $scfg, $storeid, $volname, $snap) = validate_pos(@_, 1, 1, 1, 1, 1);
 
     # delete $volname
     my $id = _lvol_id_by_name($scfg, $volname);
@@ -545,14 +544,14 @@ sub volume_snapshot_rollback {
 }
 
 sub volume_snapshot_delete {
-    my ($class, $scfg, $storeid, $volname, $snap, $running) = @_;
+    my ($class, $scfg, $storeid, $volname, $snap, $running) = validate_pos(@_, 1, 1, 1, 1, 1, 0);
 
     my $snap_id = _snapshot_by_name($scfg, "$volname-$snap");
     _request($scfg, "DELETE", "/snapshot/$snap_id") or die ("Failed to delete snapshot");
 }
 
 sub rename_volume {
-    my ($class, $scfg, $storeid, $source_volname, $target_vmid, $target_volname) = @_;
+    my ($class, $scfg, $storeid, $source_volname, $target_vmid, $target_volname) = validate_pos(@_, 1, 1, 1, 1, 1, 1);
 
     my $id = _lvol_id_by_name($scfg, $source_volname);
 
@@ -565,7 +564,7 @@ sub rename_volume {
 }
 
 sub volume_has_feature {
-    my ($class, $scfg, $feature, $storeid, $volname, $snapname, $running, $opts) = @_;
+    my ($class, $scfg, $feature, $storeid, $volname, $snapname, $running, $opts) = validate_pos(@_, 1, 1, 1, 1, 1, 1, 1, 1);
 
     return 1 if exists({
         clone => 1,
@@ -579,13 +578,13 @@ sub volume_has_feature {
 }
 
 sub activate_volume {
-    my ($class, $storeid, $scfg, $volname, $snapname, $cache) = @_;
+    my ($class, $storeid, $scfg, $volname, $snapname, $cache) = validate_pos(@_, 1, 1, 1, 1, 1, 1);
 
     _connect_lvol($scfg, _lvol_id_by_name($scfg, $volname));
 }
 
 sub deactivate_volume {
-    my ($class, $storeid, $scfg, $volname, $snapname, $cache) = @_;
+    my ($class, $storeid, $scfg, $volname, $snapname, $cache) = validate_pos(@_, 1, 1, 1, 1, 1, 1);
 
     _disconnect_lvol($scfg, _lvol_id_by_name($scfg, $volname));
 }

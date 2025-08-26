@@ -34,6 +34,16 @@ sub _one {
     return $results[0];
 }
 
+sub _one_or_none {
+    my @results = @_;
+    if (@results == 0) {
+        return undef;
+    } elsif (@results > 1) {
+        die "Multiple results found when exactly one was expected: " . scalar(@results);
+    }
+    return $results[0];
+}
+
 sub _untaint {
     my ($value, $type) = validate_pos(@_, 1, 1);
 
@@ -139,15 +149,19 @@ sub _device_connections() {
 }
 
 sub _lvol_by_name {
-    my ($scfg, $volname) = validate_pos(@_, 1, 1);
+    my ($scfg, $volname, $fail_missing) = validate_pos(@_, 1, 1, {default => 1});
     my $lvols = _lvols_by_pool($scfg, $scfg->{pool});
-    my $lvol = _one(grep { $volname eq $_->{lvol_name} } @$lvols);
-    return ($lvol or die("Volume not found\n"));
+    my $lvol = _one_or_none(grep { $volname eq $_->{lvol_name} } @$lvols);
+    if ($fail_missing && !defined($lvol)) {
+        die("Volume not found\n");
+    }
+    return $lvol;
 }
 
 sub _lvol_id_by_name {
-    my ($scfg, $volname) = validate_pos(@_, 1, 1);
-    return _lvol_by_name($scfg, $volname)->{id};
+    my ($scfg, $volname, $fail_missing) = validate_pos(@_, 1, 1, {default => 1});
+    my $lvol = _lvol_by_name($scfg, $volname, $fail_missing);
+    return defined($lvol) ? $lvol->{id} : undef;
 }
 
 sub _lvols_by_pool {
@@ -400,7 +414,10 @@ sub parse_volname {
 sub filesystem_path {
     my ($class, $scfg, $volname, $snapname) = validate_pos(@_, 1, 1, 1, 0);
     my ($vtype, $name, $vmid) = $class->parse_volname($volname);
-    my $id = _lvol_id_by_name($scfg, $volname);
+    my $id = _lvol_id_by_name($scfg, $volname, 0);
+    if (!defined($id)) {
+        return undef;
+    }
 
     _connect_lvol($scfg, $id);
 
@@ -441,8 +458,13 @@ sub alloc_image {
 sub free_image {
     my ($class, $storeid, $scfg, $volname, $isBase, $file_format) = validate_pos(@_, 1, 1, 1, 1, 1, 0);
 
-    my $lvol = _lvol_by_name($scfg, $volname);
-    _delete_lvol($scfg, $lvol->{id});
+    my $lvol = _lvol_by_name($scfg, $volname, 0);
+    if (defined($lvol)) {
+        _delete_lvol($scfg, $lvol->{id});
+    } else {
+        print("Volume does not exist\n");
+        return;
+    }
 
     # Delete associated snapshots
     my $snapshots = _request($scfg, "GET", "/snapshot") or die("Failed to list snapshots\n");
@@ -530,7 +552,11 @@ sub volume_snapshot_rollback {
     my ($class, $scfg, $storeid, $volname, $snap) = validate_pos(@_, 1, 1, 1, 1, 1);
 
     # delete $volname
-    my $id = _lvol_id_by_name($scfg, $volname);
+    my $id = _lvol_id_by_name($scfg, $volname, 0);
+    if (!defined($id)) {
+        print("Volume does not exist\n");
+        return;
+    }
     _delete_lvol($scfg, $id);
 
     # clone $snap

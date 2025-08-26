@@ -166,17 +166,17 @@ sub _lvol_id_by_name {
 
 sub _lvols_by_pool {
     my ($scfg, $pool_name) = validate_pos(@_, 1, 1);
-    return [
-        grep { $pool_name eq $_->{pool_name} }
-        @{_request($scfg, "GET", "/lvol") or die("Failed to list volumes\n")}
+    my $pool_id = _pool_by_name($scfg, $pool_name)->{uuid};
+    return [grep
+            { $pool_id eq $_->{pool_uuid} }
+            @{_request($scfg, "GET", "/lvol") or die("Failed to list volumes\n")}
     ];
 }
 
 sub _pool_by_name {
     my ($scfg, $pool_name) = validate_pos(@_, 1, 1);
     my $pools = _request($scfg, "GET", "/pool") or die("Failed to list pools\n");
-    my ($pool) = grep { $pool_name eq $_->{pool_name} } @$pools;
-    return ($pool or die("Pool not found\n"));
+    return _one(grep { $pool_name eq $_->{pool_name} } @$pools);
 }
 
 sub _snapshot_by_name {

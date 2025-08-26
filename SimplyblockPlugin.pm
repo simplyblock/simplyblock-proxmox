@@ -21,7 +21,7 @@ my $MIN_LVOL_SIZE = 100 * (2 ** 20);
 my $UUID_PATTERN = qr/[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}/;
 my $NQN_PATTERN = qr/^[\d\w\.-]+:$UUID_PATTERN:lvol:(?<volume_id>$UUID_PATTERN)$/;
 my $IP_PATTERN = qr/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/;
-my $CONTROLLER_ADDRESS_PATTERN = qr/^traddr=(?<traddr>$IP_PATTERN),trsvcid=(?P<trsvcid>\d{1,5}),src_addr=(?P<src_addr>$IP_PATTERN)$/;
+my $CONTROLLER_ADDRESS_PATTERN = qr/^traddr=(?<traddr>$IP_PATTERN),trsvcid=(?P<trsvcid>\d{1,5})(,src_addr=(?P<src_addr>$IP_PATTERN))?$/;
 my $VOLUME_NAME_PATTERN = qr/^(?<name>vm-(?<vmid>\d+)-(?<suffix>\S+))$/;
 
 sub _one {

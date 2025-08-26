@@ -615,4 +615,9 @@ sub deactivate_volume {
     _disconnect_lvol($scfg, _lvol_id_by_name($scfg, $volname));
 }
 
+sub volume_size_info {
+    my ($class, $scfg, $storeid, $volname, $timeout) = validate_pos(@_, 1, 1, 1, 1, 0);
+    return _lvol_by_name($scfg, $volname)->{size};
+}
+
 1;

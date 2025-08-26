@@ -1,3 +1,16 @@
+simplyblock-proxmox (0.4.3-1) unstable; urgency=medium
+
+  * Fix filtering on volume listing
+  * Validate function parameters
+  * Fix false-negative status reporting
+  * Handle missing volumes gracefully on deletion
+  * Make NVMe output parsing more resilient
+  * Adapt tests
+  * More reliable handling of pool references
+  * Introduce volume size check
+
+ -- root <max@simplyblock.io>  Wed, 27 Aug 2025 00:54:54 +0200
+
 simplyblock-proxmox (0.4.2-1) unstable; urgency=medium
 
   * Fix lvol lookup with multi-client deployments

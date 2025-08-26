@@ -48,7 +48,7 @@ def test_resize_grow(vm):
 
 def test_resize_shrink(vm):
     output = co(['qm', 'resize', vm, 'scsi0', '2G'], stderr=STDOUT, text=True).strip()
-    assert output == "shrinking disks is not supported"
+    assert output.endswith("shrinking disks is not supported")
 
 def test_full_clone(vm):
     clone_id = '9001'

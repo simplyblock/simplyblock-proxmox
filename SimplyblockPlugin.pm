@@ -45,14 +45,15 @@ sub _one_or_none {
 }
 
 sub _untaint {
-    my ($value, $type) = validate_pos(@_, 1, 1);
+    my ($value, $type) = validate_pos(@_, 1, {default => 'any'});
 
     my %patterns = (
         num => qr/^(-?\d+)$/,
         ip     => qr/^((?:\d{1,3}\.){3}\d{1,3})$/,
         port   => qr/^(\d+)$/,
         nqn    => qr/^([\w\.\-\:]+)$/,
-        path    => qr/^([\w\d\/]+)$/,
+        path   => qr/^([\w\d\/]+)$/,
+        any   => qr/^(.*)$/,
     );
 
     die "Unknown validation type: $type" unless exists $patterns{$type};
@@ -61,6 +62,25 @@ sub _untaint {
         return $1;  # Return the untainted value
     } else {
         die "Invalid $type value: $value";
+    }
+}
+
+sub _untaint_recursive {
+    my ($data) = @_;
+
+    return undef unless defined $data;
+
+    if (ref $data eq 'HASH') {
+        my $clean = {};
+        for my $key (keys %$data) {
+            my $clean_key = _untaint($key);
+            $clean->{$clean_key} = _untaint_recursive($data->{$key});
+        }
+        return $clean;
+    } elsif (ref $data eq 'ARRAY') {
+        return [ map { _untaint_recursive($_) } @$data ];
+    } else {
+        return _untaint($data);
     }
 }
 
@@ -120,7 +140,7 @@ sub _request {
         return;
     }
 
-    return $content->{"results"};
+    return _untaint_recursive($content->{"results"});
 }
 
 sub _device_connections() {
@@ -196,21 +216,21 @@ sub _connect_lvol {
 
     # If first connection fails, secondary will not be connected.
     foreach my $info (@$connect_info) {
-        my $ip = _untaint($info->{ip}, "ip");
-        my $port = _untaint($info->{port}, "port");
+        my $ip = $info->{ip};
+        my $port = $info->{port};
 
         next if (grep {"$ip:$port" eq $_} @$connected_controllers);
 
         run_command([
             "nvme", "connect",
-            "--reconnect-delay=" . ($scfg->{'reconnect-delay'} // _untaint($info->{'reconnect-delay'}, 'num')),
-            "--ctrl-loss-tmo=" . ($scfg->{'control-loss-timeout'} // _untaint($info->{'ctrl-loss-tmo'}, 'num')),
-            "--nr-io-queues=" . ($scfg->{'number-io-queues'} // _untaint($info->{'nr-io-queues'}, 'num')),
-            "--keep-alive-tmo=" . ($scfg->{'keep-alive-timeout'} // _untaint($info->{'keep-alive-tmo'}, 'num')),
+            "--reconnect-delay=" . ($scfg->{'reconnect-delay'} // $info->{'reconnect-delay'}),
+            "--ctrl-loss-tmo=" . ($scfg->{'control-loss-timeout'} // $info->{'ctrl-loss-tmo'}),
+            "--nr-io-queues=" . ($scfg->{'number-io-queues'} // $info->{'nr-io-queues'}),
+            "--keep-alive-tmo=" . ($scfg->{'keep-alive-timeout'} // $info->{'keep-alive-tmo'}),
             "--transport=tcp",
             "--traddr=" . $ip,
             "--trsvcid=" . $port,
-            "--nqn=" . _untaint($info->{nqn}, "nqn"),
+            "--nqn=" . $info->{nqn},
         ]);
     }
 }

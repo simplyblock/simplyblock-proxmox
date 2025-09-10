@@ -1,3 +1,13 @@
+simplyblock-proxmox (0.4.4-1) unstable; urgency=medium
+
+  [ Christoph Engelbert (noctarius) ]
+  * Added readme and contributing documentation for a cleaner repository style
+
+  [ Max Schettler ]
+  * Ensure values provided by the API are trusted
+
+ -- Max Schettler <max@simplyblock.io>  Wed, 10 Sep 2025 16:22:28 +0200
+
 simplyblock-proxmox (0.4.3-1) unstable; urgency=medium
 
   * Fix filtering on volume listing

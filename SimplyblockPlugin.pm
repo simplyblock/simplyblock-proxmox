@@ -279,7 +279,7 @@ sub _check_device_connections {
 
 # Configuration
 sub api {
-    return 11;
+    return 12;
 }
 
 sub type {

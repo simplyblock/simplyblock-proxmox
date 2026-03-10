@@ -1,3 +1,10 @@
+simplyblock-proxmox (0.5.0-1) unstable; urgency=medium
+
+  * Correct parameter validation
+  * Bump minimum plugin API version
+
+ -- Max Schettler <max@simplyblock.io>  Tue, 10 Mar 2026 16:19:32 +0100
+
 simplyblock-proxmox (0.4.4-1) unstable; urgency=medium
 
   [ Christoph Engelbert (noctarius) ]

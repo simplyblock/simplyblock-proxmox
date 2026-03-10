@@ -624,13 +624,13 @@ sub volume_has_feature {
 }
 
 sub activate_volume {
-    my ($class, $storeid, $scfg, $volname, $snapname, $cache) = validate_pos(@_, 1, 1, 1, 1, 1, 1);
+    my ($class, $storeid, $scfg, $volname, $snapname, $cache) = validate_pos(@_, 1, 1, 1, 1, 0, 0);
 
     _connect_lvol($scfg, _lvol_id_by_name($scfg, $volname));
 }
 
 sub deactivate_volume {
-    my ($class, $storeid, $scfg, $volname, $snapname, $cache) = validate_pos(@_, 1, 1, 1, 1, 1, 1);
+    my ($class, $storeid, $scfg, $volname, $snapname, $cache) = validate_pos(@_, 1, 1, 1, 1, 0, 0);
 
     _disconnect_lvol($scfg, _lvol_id_by_name($scfg, $volname));
 }

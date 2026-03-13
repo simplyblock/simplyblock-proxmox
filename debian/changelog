@@ -1,3 +1,10 @@
+simplyblock-proxmox (0.5.1-1) unstable; urgency=medium
+
+  * Add optional hint parameter to activate_volume
+  * Adaptively report API version
+
+ -- Max Schettler <max@simplyblock.io>  Fri, 13 Mar 2026 17:24:18 +0100
+
 simplyblock-proxmox (0.5.0-1) unstable; urgency=medium
 
   * Correct parameter validation

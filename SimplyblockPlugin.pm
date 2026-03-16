@@ -618,6 +618,18 @@ sub rename_volume {
     }) or die("Failed to rename image");
 }
 
+sub volume_export_formats {
+    my ($class, $scfg, $storeid, $volname, $snapshot, $base_snapshot, $with_snapshots) = validate_pos(@_, 1, 1, 1, 1, 0, 0, 0);
+    return () if defined($snapshot) || defined($base_snapshot) || $with_snapshots;
+    return ('raw+size');
+}
+
+sub volume_import_formats {
+    my ($class, $scfg, $storeid, $volname, $snapshot, $base_snapshot, $with_snapshots) = validate_pos(@_, 1, 1, 1, 1, 0, 0, 0);
+    return () if defined($base_snapshot) || $with_snapshots;
+    return ('raw+size');
+}
+
 sub volume_has_feature {
     my ($class, $scfg, $feature, $storeid, $volname, $snapname, $running, $opts) = validate_pos(@_, 1, 1, 1, 1, 1, 1, 1, 1);
 

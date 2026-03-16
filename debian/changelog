@@ -1,3 +1,9 @@
+simplyblock-proxmox (0.5.2-1) unstable; urgency=medium
+
+  * Enable import/export of volumes to other backends
+
+ -- Max Schettler <max@simplyblock.io>  Mon, 16 Mar 2026 23:21:26 +0100
+
 simplyblock-proxmox (0.5.1-1) unstable; urgency=medium
 
   * Add optional hint parameter to activate_volume

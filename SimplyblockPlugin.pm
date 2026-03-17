@@ -116,14 +116,14 @@ sub _request {
     my $entrypoint = $scfg->{entrypoint};
     $entrypoint =~ s{/+$}{};
     $entrypoint = "http://$entrypoint" unless $entrypoint =~ m{^https?://};
-    $client->setHost("$entrypoint/");
+    $client->setHost($entrypoint);
 
     if (defined $body) {
         $client->addHeader("Content-type", "application/json");
     }
 
     my $encoded_body = defined $body ? encode_json($body) : "";
-    (my $request_path = $path) =~ s{^/+}{};
+    (my $request_path = $path) =~ s{^/*}{/};
 
     for (1..5) {
         $client->request($method, $request_path, $encoded_body);
@@ -138,7 +138,7 @@ sub _request {
                 unless $location =~ m{^\Q$entrypoint\E(/|$)};
             $location =~ s{^\Q$entrypoint\E}{};
         }
-        $location =~ s{^/+}{};
+        $location =~ s{^/*}{/};
         $request_path = $location;
     }
 

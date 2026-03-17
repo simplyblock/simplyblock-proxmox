@@ -113,14 +113,17 @@ sub _request {
     # TODO: Reuse client, place in $cache
     my $client = REST::Client->new();
     $client->addHeader("Authorization", "$scfg->{cluster} $scfg->{secret}");
-    $client->setHost($scfg->{entrypoint});
+    my $entrypoint = $scfg->{entrypoint};
+    $entrypoint =~ s{/+$}{};
+    $entrypoint = "http://$entrypoint" unless $entrypoint =~ m{^https?://};
+    $client->setHost("$entrypoint/");
 
     if (defined $body) {
         $client->addHeader("Content-type", "application/json");
     }
 
     my $encoded_body = defined $body ? encode_json($body) : "";
-    my $request_path = $path;
+    (my $request_path = $path) =~ s{^/+}{};
 
     for (1..5) {
         $client->request($method, $request_path, $encoded_body);
@@ -130,8 +133,12 @@ sub _request {
         my $location = $client->responseHeader('Location');
         last unless defined $location;
 
-        # Strip scheme+host if the Location is an absolute URL
-        $location =~ s{^https?://[^/]+}{};
+        if ($location =~ m{^https?://}) {
+            die "Redirect to foreign host: $location\n"
+                unless $location =~ m{^\Q$entrypoint\E(/|$)};
+            $location =~ s{^\Q$entrypoint\E}{};
+        }
+        $location =~ s{^/+}{};
         $request_path = $location;
     }
 

@@ -110,20 +110,18 @@ sub _match_pattern {
 sub _request {
     my ($scfg, $method, $path, $body, $expect_failure) = validate_pos(@_, 1, 1, 1, 0, {default => 0});
 
-    # TODO: Reuse client, place in $cache
     my $client = REST::Client->new();
-    $client->addHeader("Authorization", "$scfg->{cluster} $scfg->{secret}");
+    $client->addHeader("Authorization", "Bearer $scfg->{secret}");
+
     my $entrypoint = $scfg->{entrypoint};
     $entrypoint =~ s{/+$}{};
     $entrypoint = "http://$entrypoint" unless $entrypoint =~ m{^https?://};
     $client->setHost($entrypoint);
 
-    if (defined $body) {
-        $client->addHeader("Content-type", "application/json");
-    }
-
+    $client->addHeader("Content-type", "application/json") if defined $body;
     my $encoded_body = defined $body ? encode_json($body) : "";
-    (my $request_path = $path) =~ s{^/*}{/};
+
+    (my $request_path = $path) =~ s{^/*}{/api/v2/};
 
     for (1..5) {
         $client->request($method, $request_path, $encoded_body);
@@ -143,25 +141,18 @@ sub _request {
     }
 
     my $code = $client->responseCode();
-    my $content = (fc($client->responseHeader('Content-type')) eq fc('application/json'))
-        ? decode_json($client->responseContent())
-        : ((200 <= $code or $code < 300)  # Ensure we always have response content
-            ? { status => 1, results => 1 }
-            : { status => 0 }
-        );
 
-    if (($code < 200 or 300 <= $code) or (not $content->{status})) {
-        my $msg = exists $content->{error} ? $content->{error} : "-";
-
-        if ($expect_failure) {
-            return $msg;
-        }
-
-        warn("Request failed: $code, $msg");
-        return;
+    if ($code >= 200 && $code < 300) {
+        my $body = $client->responseContent();
+        return 1 unless defined $body && length $body;
+        return _untaint_recursive(decode_json($body));
     }
 
-    return _untaint_recursive($content->{"results"});
+    my $content = eval { decode_json($client->responseContent()) } // {};
+    my $msg = $content->{detail}[0]{msg} // $content->{error} // "-";
+    return $msg if $expect_failure;
+    warn "Request failed: $code, $msg";
+    return;
 }
 
 sub _device_connections() {
@@ -189,10 +180,53 @@ sub _device_connections() {
     return $result;
 }
 
+sub _pool_by_name {
+    my ($scfg, $pool_name, $cache) = validate_pos(@_, 1, 1, 0);
+
+    my $key = "pool:$pool_name";
+    return $cache->{$key} if defined($cache) && exists($cache->{$key});
+
+    my $pools = _request($scfg, "GET", "/clusters/$scfg->{cluster}/storage-pools/")
+        or die "Failed to list storage pools\n";
+    my $pool = _one(grep { $pool_name eq $_->{name} } @$pools);
+
+    $cache->{$key} = $pool if defined($cache);
+    return $pool;
+}
+
+# Issue a request scoped to the configured storage pool.
+# $subpath is appended to /clusters/{cluster}/storage-pools/{pool_id}/.
+sub _pool_request {
+    my ($scfg, $cache, $method, $subpath, $body, $expect_failure) =
+        validate_pos(@_, 1, 0, 1, {default => ""}, 0, {default => 0});
+
+    my $pool_id = _pool_by_name($scfg, $scfg->{pool}, $cache)->{id};
+    my $path = "/clusters/$scfg->{cluster}/storage-pools/$pool_id/";
+    $path .= $subpath if length $subpath;
+    return _request($scfg, $method, $path, $body, $expect_failure);
+}
+
+sub _cluster {
+    my ($scfg) = validate_pos(@_, 1);
+    return _request($scfg, "GET", "/clusters/$scfg->{cluster}/")
+        or die "Cluster not responding\n";
+}
+
+sub _pool {
+    my ($scfg, $cache) = validate_pos(@_, 1, 0);
+    return _pool_request($scfg, $cache, "GET")
+        or die "Failed to get storage pool\n";
+}
+
+sub _lvols {
+    my ($scfg, $cache) = validate_pos(@_, 1, 0);
+    return _pool_request($scfg, $cache, "GET", "volumes/")
+        or die "Failed to list volumes\n";
+}
+
 sub _lvol_by_name {
-    my ($scfg, $volname, $fail_missing) = validate_pos(@_, 1, 1, {default => 1});
-    my $lvols = _lvols_by_pool($scfg, $scfg->{pool});
-    my $lvol = _one_or_none(grep { $volname eq $_->{lvol_name} } @$lvols);
+    my ($scfg, $volname, $fail_missing, $cache) = validate_pos(@_, 1, 1, {default => 1}, 0);
+    my $lvol = _one_or_none(grep { $volname eq $_->{name} } @{_lvols($scfg, $cache)});
     if ($fail_missing && !defined($lvol)) {
         die("Volume not found\n");
     }
@@ -200,47 +234,32 @@ sub _lvol_by_name {
 }
 
 sub _lvol_id_by_name {
-    my ($scfg, $volname, $fail_missing) = validate_pos(@_, 1, 1, {default => 1});
-    my $lvol = _lvol_by_name($scfg, $volname, $fail_missing);
+    my ($scfg, $volname, $fail_missing, $cache) = validate_pos(@_, 1, 1, {default => 1}, 0);
+    my $lvol = _lvol_by_name($scfg, $volname, $fail_missing, $cache);
     return defined($lvol) ? $lvol->{id} : undef;
 }
 
-sub _lvols_by_pool {
-    my ($scfg, $pool_name, $cache) = validate_pos(@_, 1, 1, 0);
-    my $pool_id = _pool_by_name($scfg, $pool_name, $cache)->{uuid};
-    return [grep
-            { $pool_id eq $_->{pool_uuid} }
-            @{_request($scfg, "GET", "/lvol") or die("Failed to list volumes\n")}
-    ];
-}
-
-sub _pool_by_name {
-    my ($scfg, $pool_name, $cache) = validate_pos(@_, 1, 1, 0);
-
-    my $key = "pool:$pool_name";
-    return $cache->{$key} if defined($cache) && exists($cache->{$key});
-
-    my $pools = _request($scfg, "GET", "/pool") or die("Failed to list pools\n");
-    my $pool = _one(grep { $pool_name eq $_->{pool_name} } @$pools);
-
-    $cache->{$key} = $pool if defined($cache);
-    return $pool;
+sub _vol_id_by_name {
+    my ($scfg, $volname, $cache) = validate_pos(@_, 1, 1, 0);
+    my $lvol = _one(grep { $volname eq $_->{name} } @{_lvols($scfg, $cache)});
+    return $lvol->{id};
 }
 
 sub _snapshot_by_name {
-    my ($scfg, $snap_name) = validate_pos(@_, 1, 1);
-    my $snapshots = _request($scfg, "GET", "/snapshot") or die("Failed to list snapshots\n");
-    my ($snapshot) = grep { $snap_name eq $_->{snap_name} } @$snapshots;
+    my ($scfg, $snap_name, $cache) = validate_pos(@_, 1, 1, 0);
+    my $snapshots = _pool_request($scfg, $cache, "GET", "snapshots/")
+        or die "Failed to list snapshots\n";
+    my ($snapshot) = grep { $snap_name eq $_->{name} } @$snapshots;
     return ($snapshot->{id} or die("Snapshot not found\n"));
 }
 
 sub _connect_lvol {
-    my ($scfg, $id) = validate_pos(@_, 1, 1);
+    my ($scfg, $id, $cache) = validate_pos(@_, 1, 1, 0);
 
     my $connections = _device_connections();
     my $connected_controllers = (exists $connections->{$id}) ?
             $connections->{$id}->{controllers} : [];
-    my $connect_info = _request($scfg, "GET", "/lvol/connect/$id");
+    my $connect_info = _pool_request($scfg, $cache, "GET", "volumes/$id/connect");
 
     # If first connection fails, secondary will not be connected.
     foreach my $info (@$connect_info) {
@@ -273,19 +292,19 @@ sub _disconnect_lvol {
 }
 
 sub _delete_lvol {
-    my ($scfg, $id) = validate_pos(@_, 1, 1);
+    my ($scfg, $id, $cache) = validate_pos(@_, 1, 1, 0);
 
     _disconnect_lvol($scfg, $id);
-    _request($scfg, "DELETE", "/lvol/$id");
+    _pool_request($scfg, $cache, "DELETE", "volumes/$id/");
 
     # Await deletion
     for (my $i = 0; $i < 120; $i += 1) {
-        my $ret = _request($scfg, "GET", "/lvol/$id", undef, 1);
+        my $ret = _pool_request($scfg, $cache, "GET", "volumes/$id/", undef, 1);
 
-        if (ref($ret) eq 'ARRAY' && exists $ret->[0]{status} && ($ret->[0]{status} eq "in_deletion")) {
+        if (ref($ret) eq 'HASH' && $ret->{status} eq "in_deletion") {
             sleep(1);
-        } elsif ($ret eq "LVol not found: $id") {
-            return undef;  # Success
+        } elsif (!ref($ret)) {
+            return undef;  # Got error string — volume gone, success
         } else {
             die("Failed to await LVol deletion");
         }
@@ -295,12 +314,12 @@ sub _delete_lvol {
 
 
 sub _check_device_connections {
-    my ($scfg) = validate_pos(@_, 1);
+    my ($scfg, $cache) = validate_pos(@_, 1, 0);
 
     my $connections = _device_connections();
     foreach my $id (keys %$connections) {
         next if (scalar(@{scalar($connections->{$id}->{controllers})}) == 2);
-        _connect_lvol($scfg, $id);
+        _connect_lvol($scfg, $id, $cache);
     }
 }
 
@@ -419,7 +438,7 @@ sub options {
 sub activate_storage {
     my ($class, $storeid, $scfg, $cache) = validate_pos(@_, 1, 1, 1, 1);
 
-    my $cluster = (_request($scfg, "GET", "/cluster/$scfg->{cluster}") or die("Cluster not responding"))->[0];
+    my $cluster = _cluster($scfg);
     if ($cluster->{status} ne "active") {
         die("Cluster not active");
     }
@@ -436,23 +455,24 @@ sub deactivate_storage {
 sub status {
     my ($class, $storeid, $scfg, $cache) = validate_pos(@_, 1, 1, 1, 1);
 
-    my $cluster = _request($scfg, "GET", "/cluster/$scfg->{cluster}")->[0]
-        or die("Cluster not responding");
-
+    my $cluster = _cluster($scfg);
     my $active = $cluster->{status} eq 'active';
+
     if ($active && $cluster->{ha_type} eq 'ha') {
-        _check_device_connections($scfg);
+        _check_device_connections($scfg, $cache);
     }
 
-    my $lvols = _lvols_by_pool($scfg, $scfg->{pool}, $cache);
-    my $used = 0;
+    my $lvols = _lvols($scfg, $cache);
+    my $used  = 0;
 
     foreach (@$lvols) {
-        $used += _request($scfg, "GET", "/lvol/capacity/$_->{uuid}")->{stats}[-1]{used} // die('Failed to access pool');
+        $used += _pool_request($scfg, $cache, "GET", "volumes/$_->{id}/capacity")
+            ->{stats}[-1]{used} // die 'Failed to access pool';
     }
 
-    my $total = (_pool_by_name($scfg, $scfg->{pool}, $cache)->{pool_max_size} or $cluster->{cluster_max_size});
-    my $free = $total - $used;
+    my $pool  = _pool($scfg, $cache);
+    my $total = $pool->{max_size};
+    my $free  = $total - $used;
 
     return ($total, $free, $used, $active);
 }
@@ -497,16 +517,16 @@ sub alloc_image {
     die "illegal name '$name' - should be 'vm-$vmid-*'\n"
         if  $name && $name !~ m/^vm-$vmid-/;
 
-    my $id = _request($scfg, "POST", "/lvol", {
-        pool => $scfg->{pool},
-        name => $name,
-        size => max($size_kib * 1024, $MIN_LVOL_SIZE),
-        max_rw_iops => ${scfg}->{'max-rw-iops'},
-        max_rw_mbytes => ${scfg}->{'max-rw-mbytes'},
-        max_r_mbytes => ${scfg}->{'max-r-mbytes'},
-        max_w_mbytes => ${scfg}->{'max-w-mbytes'},
-    }) or die("Failed to create image");
+    _pool_request($scfg, undef, "POST", "volumes/", {
+        name          => $name,
+        size          => max($size_kib * 1024, $MIN_LVOL_SIZE),
+        max_rw_iops   => $scfg->{'max-rw-iops'},
+        max_rw_mbytes => $scfg->{'max-rw-mbytes'},
+        max_r_mbytes  => $scfg->{'max-r-mbytes'},
+        max_w_mbytes  => $scfg->{'max-w-mbytes'},
+    }) or die "Failed to create image\n";
 
+    my $id = _vol_id_by_name($scfg, $name);
     _connect_lvol($scfg, $id);
 
     return $name;
@@ -524,11 +544,13 @@ sub free_image {
     }
 
     # Delete associated snapshots
-    my $snapshots = _request($scfg, "GET", "/snapshot") or die("Failed to list snapshots\n");
+    my $snapshots = _pool_request($scfg, undef, "GET", "snapshots/")
+        or die "Failed to list snapshots\n";
     foreach (@$snapshots) {
         next if ($_->{lvol}{id} ne $lvol->{id}) or ($_->{id} ne $lvol->{cloned_from_snap});
 
-        _request($scfg, "DELETE", "/snapshot/$_->{id}") or die("Failed to delete snapshot\n");
+        _pool_request($scfg, undef, "DELETE", "snapshots/$_->{id}/")
+            or die "Failed to delete snapshot\n";
     }
 }
 
@@ -546,10 +568,11 @@ sub clone_image {
 
     my $match = _match_pattern($volname, $VOLUME_NAME_PATTERN);
     my $clone_volume_name = "vm-$clone_vmid-$match->{suffix}";
-    _request($scfg, "POST", "/snapshot/clone", {
+
+    _pool_request($scfg, undef, "POST", "volumes/", {
+        name        => $clone_volume_name,
         snapshot_id => $snapshot_id,
-        clone_name => $clone_volume_name
-    }) or die("Failed to clone snapshot");
+    }) or die "Failed to clone snapshot\n";
 
     if (!$existing_snapshot) {
         $class->volume_snapshot_delete($scfg, $storeid, $volname, $snapshot);
@@ -561,12 +584,12 @@ sub clone_image {
 sub list_images {
     my ($class, $storeid, $scfg, $vmid, $vollist, $cache) = validate_pos(@_, 1, 1, 1, 0, 0, 0);
 
-    my $lvols = _lvols_by_pool($scfg, $scfg->{pool}, $cache);
+    my $lvols = _lvols($scfg, $cache);
     my $res = [];
 
     foreach (@$lvols) {
-        next if $_->{lvol_name} !~ m/^vm-(\d+)-/;
-        my $volid = "$storeid:$_->{lvol_name}";
+        next if $_->{name} !~ m/^vm-(\d+)-/;
+        my $volid = "$storeid:$_->{name}";
         if (defined($vollist)) {
             next if !(grep { $_ eq $volid } @$vollist);
         } else {
@@ -588,21 +611,18 @@ sub volume_resize {
     my ($class, $scfg, $storeid, $volname, $size, $running) = validate_pos(@_, 1, 1, 1, 1, 1, 1);
 
     my $id = _lvol_id_by_name($scfg, $volname);
-
-    _request($scfg, "PUT", "/lvol/resize/$id", {
-        size => max($size, $MIN_LVOL_SIZE)
-    }) or die("Failed to resize image");
+    _pool_request($scfg, undef, "PUT", "volumes/$id/", {
+        size => max($size, $MIN_LVOL_SIZE),
+    }) or die "Failed to resize image\n";
 }
 
 sub volume_snapshot {
     my ($class, $scfg, $storeid, $volname, $snap) = validate_pos(@_, 1, 1, 1, 1, 1);
 
     my $id = _lvol_id_by_name($scfg, $volname);
-
-    _request($scfg, "POST", "/snapshot", {
-        snapshot_name => "$volname-$snap",
-        lvol_id => $id
-    }) or die("Failed to create snapshot");
+    _pool_request($scfg, undef, "POST", "volumes/$id/snapshots", {
+        name => "$volname-$snap",
+    }) or die "Failed to create snapshot\n";
 }
 
 sub volume_snapshot_rollback {
@@ -618,11 +638,12 @@ sub volume_snapshot_rollback {
 
     # clone $snap
     my $snap_id = _snapshot_by_name($scfg, "$volname-$snap");
-    my $new_id = _request($scfg, "POST", "/snapshot/clone", {
+    _pool_request($scfg, undef, "POST", "volumes/", {
         snapshot_id => $snap_id,
-        clone_name => $volname
-    }) or die("Failed to restore snapshot");
+        name        => $volname,
+    }) or die "Failed to restore snapshot\n";
 
+    my $new_id = _vol_id_by_name($scfg, $volname);
     _connect_lvol($scfg, $new_id);
 }
 
@@ -630,7 +651,8 @@ sub volume_snapshot_delete {
     my ($class, $scfg, $storeid, $volname, $snap, $running) = validate_pos(@_, 1, 1, 1, 1, 1, 0);
 
     my $snap_id = _snapshot_by_name($scfg, "$volname-$snap");
-    _request($scfg, "DELETE", "/snapshot/$snap_id") or die ("Failed to delete snapshot");
+    _pool_request($scfg, undef, "DELETE", "snapshots/$snap_id/")
+        or die "Failed to delete snapshot\n";
 }
 
 sub rename_volume {
@@ -641,9 +663,9 @@ sub rename_volume {
     $target_volname = $class->find_free_diskname($storeid, $scfg, $target_vmid, "raw")
         if !$target_volname;
 
-    _request($scfg, "PUT", "/lvol/id", {
-        name => $target_volname
-    }) or die("Failed to rename image");
+    _pool_request($scfg, undef, "PUT", "volumes/$id/", {
+        name => $target_volname,
+    }) or die "Failed to rename image\n";
 }
 
 sub volume_export_formats {
@@ -675,13 +697,13 @@ sub volume_has_feature {
 sub activate_volume {
     my ($class, $storeid, $scfg, $volname, $snapname, $cache, $hints) = validate_pos(@_, 1, 1, 1, 1, 0, 0, 0);
 
-    _connect_lvol($scfg, _lvol_id_by_name($scfg, $volname));
+    _connect_lvol($scfg, _lvol_id_by_name($scfg, $volname, 1, $cache), $cache);
 }
 
 sub deactivate_volume {
     my ($class, $storeid, $scfg, $volname, $snapname, $cache) = validate_pos(@_, 1, 1, 1, 1, 0, 0);
 
-    _disconnect_lvol($scfg, _lvol_id_by_name($scfg, $volname));
+    _disconnect_lvol($scfg, _lvol_id_by_name($scfg, $volname, 1, $cache));
 }
 
 sub volume_size_info {

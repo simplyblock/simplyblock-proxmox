@@ -148,10 +148,12 @@ sub _request {
         return _untaint_recursive(decode_json($body));
     }
 
-    my $content = eval { decode_json($client->responseContent()) } // {};
+    my $raw     = $client->responseContent();
+    my $content = eval { decode_json($raw) } // {};
     my $msg = $content->{detail}[0]{msg} // $content->{error} // "-";
     return $msg if $expect_failure;
     warn "Request failed: $code, $msg";
+    warn "Response body: $raw" if defined $raw && length $raw;
     return;
 }
 
@@ -209,19 +211,19 @@ sub _pool_request {
 sub _cluster {
     my ($scfg) = validate_pos(@_, 1);
     return _request($scfg, "GET", "/clusters/$scfg->{cluster}/")
-        or die "Cluster not responding\n";
+        || die "Cluster not responding\n";
 }
 
 sub _pool {
     my ($scfg, $cache) = validate_pos(@_, 1, 0);
     return _pool_request($scfg, $cache, "GET")
-        or die "Failed to get storage pool\n";
+        || die "Failed to get storage pool\n";
 }
 
 sub _lvols {
     my ($scfg, $cache) = validate_pos(@_, 1, 0);
     return _pool_request($scfg, $cache, "GET", "volumes/")
-        or die "Failed to list volumes\n";
+        || die "Failed to list volumes\n";
 }
 
 sub _lvol_by_name {
@@ -517,14 +519,17 @@ sub alloc_image {
     die "illegal name '$name' - should be 'vm-$vmid-*'\n"
         if  $name && $name !~ m/^vm-$vmid-/;
 
-    _pool_request($scfg, undef, "POST", "volumes/", {
-        name          => $name,
-        size          => max($size_kib * 1024, $MIN_LVOL_SIZE),
-        max_rw_iops   => $scfg->{'max-rw-iops'},
-        max_rw_mbytes => $scfg->{'max-rw-mbytes'},
-        max_r_mbytes  => $scfg->{'max-r-mbytes'},
-        max_w_mbytes  => $scfg->{'max-w-mbytes'},
-    }) or die "Failed to create image\n";
+    my %body = (
+        name => $name,
+        size => max($size_kib * 1024, $MIN_LVOL_SIZE),
+    );
+    for my $field (qw(max_rw_iops max_rw_mbytes max_r_mbytes max_w_mbytes)) {
+        (my $cfg_key = $field) =~ s/_/-/g;
+        $body{$field} = int($scfg->{$cfg_key}) if defined $scfg->{$cfg_key};
+    }
+
+    _pool_request($scfg, undef, "POST", "volumes/", \%body)
+        or die "Failed to create image\n";
 
     my $id = _vol_id_by_name($scfg, $name);
     _connect_lvol($scfg, $id);

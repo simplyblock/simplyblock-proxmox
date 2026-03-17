@@ -150,10 +150,12 @@ sub _request {
 
     my $raw     = $client->responseContent();
     my $content = eval { decode_json($raw) } // {};
-    my $msg = $content->{detail}[0]{msg} // $content->{error} // "-";
+    my $detail = $content->{detail};
+    my $msg = (ref($detail) eq 'ARRAY' ? $detail->[0]{msg} : $detail)
+           // $content->{error} // "-";
     return $msg if $expect_failure;
     warn "Request failed: $code, $msg";
-    warn "Response body: $raw" if defined $raw && length $raw;
+    warn "Validation errors: " . encode_json($content) if $code == 422;
     return;
 }
 

@@ -9,12 +9,13 @@ def containers():
 
 
 @pytest.fixture(scope='module')
-def container(storage):
+def container(storage, ct_template):
+    if ct_template is None:
+        pytest.skip("--ct-template not provided")
     id = 9000
-    image = 'local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst'
     co([
         'pct', 'create', f'{id}',
-        image,
+        ct_template,
         '--rootfs', f'{storage}:3',
         '--hostname', 'LXC-9000',
         '--memory', '1024',

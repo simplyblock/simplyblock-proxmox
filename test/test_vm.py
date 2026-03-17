@@ -9,14 +9,15 @@ def vms():
 
 
 @pytest.fixture(scope='module')
-def vm(storage):
+def vm(storage, vm_image):
+    if vm_image is None:
+        pytest.skip("--vm-image not provided")
     id = 9000
-    image = '/root/debian-12-generic-amd64.qcow2'
     co([
         'qm', 'create', f'{id}',
         '--memory', '1024',
         '--scsihw', 'virtio-scsi-pci',
-        '--scsi0', f'{storage}:0,import-from={image}',
+        '--scsi0', f'{storage}:0,import-from={vm_image}',
     ])
     yield f'{id}'
     co(['qm', 'destroy', f'{id}'])

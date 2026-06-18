@@ -185,8 +185,8 @@ sub _lvol_id_by_name {
 }
 
 sub _lvols_by_pool {
-    my ($scfg, $pool_name) = validate_pos(@_, 1, 1);
-    my $pool_id = _pool_by_name($scfg, $pool_name)->{uuid};
+    my ($scfg, $pool_name, $cache) = validate_pos(@_, 1, 1, 0);
+    my $pool_id = _pool_by_name($scfg, $pool_name, $cache)->{uuid};
     return [grep
             { $pool_id eq $_->{pool_uuid} }
             @{_request($scfg, "GET", "/lvol") or die("Failed to list volumes\n")}
@@ -194,9 +194,16 @@ sub _lvols_by_pool {
 }
 
 sub _pool_by_name {
-    my ($scfg, $pool_name) = validate_pos(@_, 1, 1);
+    my ($scfg, $pool_name, $cache) = validate_pos(@_, 1, 1, 0);
+
+    my $key = "pool:$pool_name";
+    return $cache->{$key} if defined($cache) && exists($cache->{$key});
+
     my $pools = _request($scfg, "GET", "/pool") or die("Failed to list pools\n");
-    return _one(grep { $pool_name eq $_->{pool_name} } @$pools);
+    my $pool = _one(grep { $pool_name eq $_->{pool_name} } @$pools);
+
+    $cache->{$key} = $pool if defined($cache);
+    return $pool;
 }
 
 sub _snapshot_by_name {
@@ -416,14 +423,14 @@ sub status {
         _check_device_connections($scfg);
     }
 
-    my $lvols = _lvols_by_pool($scfg, $scfg->{pool});
+    my $lvols = _lvols_by_pool($scfg, $scfg->{pool}, $cache);
     my $used = 0;
 
     foreach (@$lvols) {
         $used += _request($scfg, "GET", "/lvol/capacity/$_->{uuid}")->{stats}[-1]{used} // die('Failed to access pool');
     }
 
-    my $total = (_pool_by_name($scfg, $scfg->{pool})->{pool_max_size} or $cluster->{cluster_max_size});
+    my $total = (_pool_by_name($scfg, $scfg->{pool}, $cache)->{pool_max_size} or $cluster->{cluster_max_size});
     my $free = $total - $used;
 
     return ($total, $free, $used, $active);
@@ -533,7 +540,7 @@ sub clone_image {
 sub list_images {
     my ($class, $storeid, $scfg, $vmid, $vollist, $cache) = validate_pos(@_, 1, 1, 1, 0, 0, 0);
 
-    my $lvols = _lvols_by_pool($scfg, $scfg->{pool});
+    my $lvols = _lvols_by_pool($scfg, $scfg->{pool}, $cache);
     my $res = [];
 
     foreach (@$lvols) {

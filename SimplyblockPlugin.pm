@@ -111,15 +111,36 @@ sub _request {
     my ($scfg, $method, $path, $body, $expect_failure) = validate_pos(@_, 1, 1, 1, 0, {default => 0});
 
     # TODO: Reuse client, place in $cache
-    my $client = REST::Client->new({ follow => 1});
+    my $client = REST::Client->new();
     $client->addHeader("Authorization", "$scfg->{cluster} $scfg->{secret}");
-    $client->setHost($scfg->{entrypoint});
+    my $entrypoint = $scfg->{entrypoint};
+    $entrypoint =~ s{/+$}{};
+    $entrypoint = "http://$entrypoint" unless $entrypoint =~ m{^https?://};
+    $client->setHost($entrypoint);
 
     if (defined $body) {
         $client->addHeader("Content-type", "application/json");
     }
 
-    $client->request($method, $path, defined $body ? encode_json($body) : "");
+    my $encoded_body = defined $body ? encode_json($body) : "";
+    (my $request_path = $path) =~ s{^/*}{/};
+
+    for (1..5) {
+        $client->request($method, $request_path, $encoded_body);
+        my $code = $client->responseCode();
+        last unless $code >= 301 && $code <= 308 && $code != 304;
+
+        my $location = $client->responseHeader('Location');
+        last unless defined $location;
+
+        if ($location =~ m{^https?://}) {
+            die "Redirect to foreign host: $location\n"
+                unless $location =~ m{^\Q$entrypoint\E(/|$)};
+            $location =~ s{^\Q$entrypoint\E}{};
+        }
+        $location =~ s{^/*}{/};
+        $request_path = $location;
+    }
 
     my $code = $client->responseCode();
     my $content = (fc($client->responseHeader('Content-type')) eq fc('application/json'))

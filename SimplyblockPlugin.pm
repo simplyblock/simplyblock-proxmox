@@ -557,7 +557,9 @@ sub list_images {
 }
 
 sub volume_resize {
-    my ($class, $scfg, $storeid, $volname, $size, $running) = validate_pos(@_, 1, 1, 1, 1, 1, 1);
+    my ($class, $scfg, $storeid, $volname, $size, $running, $snapname) = validate_pos(@_, 1, 1, 1, 1, 1, 1, 0);
+
+    die "Resizing a snapshot is not supported for $class.\n" if $snapname;
 
     my $id = _lvol_id_by_name($scfg, $volname);
 

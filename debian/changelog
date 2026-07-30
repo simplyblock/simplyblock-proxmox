@@ -1,3 +1,9 @@
+simplyblock-proxmox (0.5.4-1) unstable; urgency=medium
+
+  * Fix handling of snapshot resizing
+
+ -- Max Schettler <max@simplyblock.io>  Thu, 30 Jul 2026 12:21:54 +0200
+
 simplyblock-proxmox (0.5.3-1) unstable; urgency=medium
 
   * Bump maximum proxmox version

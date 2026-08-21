@@ -1,3 +1,14 @@
+simplyblock-proxmox (0.6.0-1) unstable; urgency=medium
+
+  * Bump maximum supported API version
+  * Rely on API-provided pool capacity if available
+  * Make images configurable for tests
+  * Bump to API v2
+  * Add manual request-follow logic
+  * Cache pool lookups
+
+ -- Max Schettler <max@simplyblock.io>  Fri, 21 Aug 2026 15:21:07 +0200
+
 simplyblock-proxmox (0.5.4-1) unstable; urgency=medium
 
   * Fix handling of snapshot resizing

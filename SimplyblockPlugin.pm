@@ -249,6 +249,25 @@ sub _lvols {
         || die "Failed to list volumes\n";
 }
 
+# Sum the used capacity of the pool's volumes.
+#
+# Fallback for API servers that don't report the pool's capacity themselves.
+sub _pool_used_from_volumes {
+    my ($scfg, $cache) = validate_pos(@_, 1, 0);
+
+    my $used = 0;
+    foreach (@{_lvols($scfg, $cache)}) {
+        my $records = _pool_request($scfg, $cache, "GET", "volumes/$_->{id}/capacity");
+        die "Failed to access pool\n" unless ref($records) eq 'ARRAY';
+
+        # A volume with no metrics recorded yet returns no records. Report it as
+        # unused rather than failing the whole storage.
+        $used += @$records ? $records->[-1]{size_used} : 0;
+    }
+
+    return $used;
+}
+
 sub _lvol_by_name {
     my ($scfg, $volname, $fail_missing, $cache) = validate_pos(@_, 1, 1, {default => 1}, 0);
     my $lvol = _one_or_none(grep { $volname eq $_->{name} } @{_lvols($scfg, $cache)});
@@ -487,19 +506,10 @@ sub status {
         _check_device_connections($scfg, $cache);
     }
 
-    my $lvols = _lvols($scfg, $cache);
-    my $used  = 0;
-
-    foreach (@$lvols) {
-        my $records = _pool_request($scfg, $cache, "GET", "volumes/$_->{id}/capacity");
-        die "Failed to access pool\n" unless ref($records) eq 'ARRAY';
-
-        # A volume with no metrics recorded yet returns no records. Report it as
-        # unused rather than failing the whole storage.
-        $used += @$records ? $records->[-1]{size_used} : 0;
-    }
-
     my $pool  = _pool($scfg, $cache);
+    my $used  = defined($pool->{capacity})
+        ? $pool->{capacity}{size_used}
+        : _pool_used_from_volumes($scfg, $cache);
     my $total = $pool->{max_size};
     my $free  = $total - $used;
 

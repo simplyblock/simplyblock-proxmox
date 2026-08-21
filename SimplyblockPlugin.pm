@@ -371,7 +371,7 @@ sub _check_device_connections {
 # Configuration
 sub api {
     my $min_tested_apiver = 11;
-    my $max_tested_apiver = 14;
+    my $max_tested_apiver = 15;
 
     my $apiver = PVE::Storage::APIVER;
 

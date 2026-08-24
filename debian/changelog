@@ -1,3 +1,9 @@
+simplyblock-proxmox (0.6.1-1) unstable; urgency=medium
+
+  * Fix capacity computation against legacy APIs
+
+ -- Max Schettler <max@simplyblock.io>  Tue, 25 Aug 2026 01:19:38 +0200
+
 simplyblock-proxmox (0.6.0-1) unstable; urgency=medium
 
   * Bump maximum supported API version

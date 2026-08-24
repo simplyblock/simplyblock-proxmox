@@ -506,9 +506,15 @@ sub status {
         _check_device_connections($scfg, $cache);
     }
 
-    my $pool  = _pool($scfg, $cache);
-    my $used  = defined($pool->{capacity})
-        ? $pool->{capacity}{size_used}
+    my $pool     = _pool($scfg, $cache);
+    my $capacity = $pool->{capacity};
+
+    # Older API servers always return a capacity record, even without real
+    # data, using a zero-constructed placeholder (recognizable by its unset
+    # date) instead of omitting the field. Treat that the same as a missing
+    # field and fall back to summing the volumes.
+    my $used = ($capacity && $capacity->{date})
+        ? $capacity->{size_used}
         : _pool_used_from_volumes($scfg, $cache);
     my $total = $pool->{max_size};
     my $free  = $total - $used;

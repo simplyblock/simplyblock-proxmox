@@ -5,6 +5,7 @@ use warnings;
 
 use feature qw(fc);
 use List::Util qw(max);
+use Time::HiRes qw(usleep);
 
 use Data::Dumper;
 use JSON;
@@ -18,6 +19,7 @@ use base qw(PVE::Storage::Plugin);
 
 # Helpers
 my $MIN_LVOL_SIZE = 100 * (2 ** 20);
+my $DEVICE_RESIZE_TIMEOUT = 30;
 my $UUID_PATTERN = qr/[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}/;
 my $NQN_PATTERN = qr/^[\d\w\.-]+:$UUID_PATTERN:lvol:(?<volume_id>$UUID_PATTERN)$/;
 my $IP_PATTERN = qr/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/;
@@ -357,6 +359,26 @@ sub _delete_lvol {
 }
 
 
+# A volume's new size only reaches the initiator asynchronously, via an AEN and
+# the namespace rescan it triggers. Callers act on the device as soon as the
+# resize returns, so wait for the kernel to have picked the new size up.
+sub _await_device_size {
+    my ($path, $size) = validate_pos(@_, 1, 1);
+
+    my ($name) = $path =~ m{([^/]+)\z};
+    my $deadline = time() + $DEVICE_RESIZE_TIMEOUT;
+
+    while (1) {
+        # sysfs reports sectors of 512 bytes, whatever the device's block size
+        my $sectors = PVE::Tools::file_read_firstline("/sys/class/block/$name/size") // 0;
+        return if $sectors * 512 >= $size;
+
+        die "Timeout waiting for $path to reach $size bytes\n" if time() >= $deadline;
+        usleep(50_000);
+    }
+}
+
+
 sub _check_device_connections {
     my ($scfg, $cache) = validate_pos(@_, 1, 0);
 
@@ -663,10 +685,15 @@ sub volume_resize {
 
     die "Resizing a snapshot is not supported for $class.\n" if $snapname;
 
+    $size = max($size, $MIN_LVOL_SIZE);
+
     my $id = _lvol_id_by_name($scfg, $volname);
     _pool_request($scfg, undef, "PUT", "volumes/$id/", {
-        size => max($size, $MIN_LVOL_SIZE),
+        size => $size,
     }) or die "Failed to resize image\n";
+
+    my $device = _device_connections()->{$id};
+    _await_device_size($device->{path}, $size) if defined($device);
 }
 
 sub volume_snapshot {

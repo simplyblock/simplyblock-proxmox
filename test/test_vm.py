@@ -51,6 +51,16 @@ def test_resize_shrink(vm):
     output = co(['qm', 'resize', vm, 'scsi0', '2G'], stderr=STDOUT, text=True).strip()
     assert output.endswith("shrinking disks is not supported")
 
+
+# Only a running VM resizes the block device itself, which is where the
+# initiator has to have caught up with the volume's new size.
+def test_resize_grow_running(vm):
+    cc(['qm', 'start', vm])
+    try:
+        co(['qm', 'resize', vm, 'scsi0', '+1G'])
+    finally:
+        cc(['qm', 'stop', vm])
+
 def test_full_clone(vm):
     clone_id = '9001'
     cc(['qm', 'clone', vm, clone_id])

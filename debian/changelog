@@ -1,3 +1,9 @@
+simplyblock-proxmox (0.6.2-1) unstable; urgency=medium
+
+  * Fix resize of storage under active use
+
+ -- Max Schettler <max@simplyblock.io>  Thu, 17 Sep 2026 15:36:42 +0200
+
 simplyblock-proxmox (0.6.1-1) unstable; urgency=medium
 
   * Fix capacity computation against legacy APIs

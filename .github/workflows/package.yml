@@ -22,3 +22,12 @@ jobs:
         with:
           path: debian/artifacts/
           name: debian_package
+
+  publish-repository:
+    needs: build-debs
+    permissions:
+      contents: write
+    uses: ./.github/workflows/publish-repository.yml
+    with:
+      add-package: true
+    secrets: inherit

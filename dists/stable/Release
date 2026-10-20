@@ -1,0 +1,36 @@
+Origin: Simplyblock Debian Repository
+Label: Simplyblock
+Suite: stable
+Codename: stable
+Version: 1.0
+Architectures: amd64 arm64
+Components: main
+Description: An example software repository
+Date: Thu, 17 Sep 2026 13:51:56 +0000
+MD5Sum:
+ 8615e3781bee9f737b9a7fe297dcc040 862 Release.gpg
+ b11db973e2138ef3f6326321e6cbcf82 2962 InRelease
+ 310393ae56bbc0b8f1f7ea75f9acbb4f 566 main/binary-arm64/Packages.gz
+ 56e3066262e1877d5f6919e25f4a9564 887 main/binary-arm64/Packages
+ 310393ae56bbc0b8f1f7ea75f9acbb4f 566 main/binary-all/Packages.gz
+ 56e3066262e1877d5f6919e25f4a9564 887 main/binary-all/Packages
+ 310393ae56bbc0b8f1f7ea75f9acbb4f 566 main/binary-amd64/Packages.gz
+ 56e3066262e1877d5f6919e25f4a9564 887 main/binary-amd64/Packages
+SHA1:
+ dd6f858fee774b46c08a10493d74b454626eb9da 862 Release.gpg
+ 2934ce3c9d3cc8b45830f2d58be490dcdee6c39a 2962 InRelease
+ 5dd12d2989761bed511350ba4d2e4fb9528d6abe 566 main/binary-arm64/Packages.gz
+ c5bfc1341f5f3e951367c93a65961a2c65d91717 887 main/binary-arm64/Packages
+ 5dd12d2989761bed511350ba4d2e4fb9528d6abe 566 main/binary-all/Packages.gz
+ c5bfc1341f5f3e951367c93a65961a2c65d91717 887 main/binary-all/Packages
+ 5dd12d2989761bed511350ba4d2e4fb9528d6abe 566 main/binary-amd64/Packages.gz
+ c5bfc1341f5f3e951367c93a65961a2c65d91717 887 main/binary-amd64/Packages
+SHA256:
+ 3e30bf09ae12a95c34715b5aa9a52f4104c2849aa868bea7a649d62f232ce95b 862 Release.gpg
+ 9fb59bffa976cc985f20f3a14469d45baf1e0c6a32e972dfd4fdc74dd1acceb4 2962 InRelease
+ 8354ac6008d2d44d1dfc512e06efd79de9d130cd296d1e76777d52ab77b1ee68 566 main/binary-arm64/Packages.gz
+ 1ef017d07241dac7f3456a9d144428c01267fc352151e4726e9f8b4202983f91 887 main/binary-arm64/Packages
+ 8354ac6008d2d44d1dfc512e06efd79de9d130cd296d1e76777d52ab77b1ee68 566 main/binary-all/Packages.gz
+ 1ef017d07241dac7f3456a9d144428c01267fc352151e4726e9f8b4202983f91 887 main/binary-all/Packages
+ 8354ac6008d2d44d1dfc512e06efd79de9d130cd296d1e76777d52ab77b1ee68 566 main/binary-amd64/Packages.gz
+ 1ef017d07241dac7f3456a9d144428c01267fc352151e4726e9f8b4202983f91 887 main/binary-amd64/Packages

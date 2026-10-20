@@ -9,7 +9,7 @@ Version: 1.0
 Architectures: amd64 arm64
 Components: main
 Description: Simplyblock packages, including the simplyblock storage plugin for Proxmox VE
-Date: Tue, 20 Oct 2026 06:48:48 +0000
+Date: Tue, 20 Oct 2026 07:18:52 +0000
 MD5Sum:
  0f75e29ecdac3788ff36ea0564cb48f8 13159 main/binary-all/Packages
  b0ddfb0497139594e894bb4236b94e13 2087 main/binary-all/Packages.gz
@@ -33,17 +33,17 @@ SHA256:
  7895def0e7ec2aa2633f974562ff1c5fe348b194aa2885c77bf7b397a79041ce 2087 main/binary-arm64/Packages.gz
 -----BEGIN PGP SIGNATURE-----
 
-iQIzBAEBCgAdFiEEkcBm7zgnFMJILlnS1BoTlHzGthMFAmrXDtAACgkQ1BoTlHzG
-thOHcQ/+NUGJwoAawzMED0bHKRh77ZnO0XpSWiiUtVU33h0gYaxP4p95LO1dpe95
-BpXW72jmba/hngazlIAJYVsR0RaoOlNVrInJW9ebT22kOfFFRtadQbuZo7h02Syy
-xKyczhPe7YYZSAVC6GbOTDA2JQn9ZiPJpzJN/LMMRY61e4yylFYOjtL+1+HqJFM4
-qtQrYltzgZT7cRKlp7CgVOBZoJRW3uB7K14DUgVY8qSBAbcFeP+uR0hFAdPT3Cpx
-4U0gyKnA441BSyp9N29wH+mfmaXBnPoHWR8qaBXIF038MfS7lEDQwNNSigZammPF
-h9qcZccfrD4J2LmynhebCLQLpf6C4rx69vuoegM/CGrwQ8WtiKYEOTXhcj2eyDHX
-pc+ubqekndec+ZCYPDGBMOyqZypdSqBruZHBvWNfT5ITaDgS0GK4L/IGYOvokMwm
-Hh1BIKRnZA1yRYS0fNn4cCgJXjq06PAyPwf10E+yuWCbCmQZ8lyG3la+jQ2fFOy/
-8NLzSPFIWbI/h222/YnFr7zWsuStOTl8FKVFNSVHvMch8O5SE5Ge8WEnSU9kIbe2
-oC/gZeEf2tGscL4q5F+vrD4e517Q3QMkb/56DU4PJhHdq3yVmZJdedJw6GUwmnWn
-L3XAloXvvWqxAamYgHxl5ffh+0MNUXpD/gPtv8G75H7mbm8EVpA=
-=T647
+iQIzBAEBCgAdFiEEkcBm7zgnFMJILlnS1BoTlHzGthMFAmrXFdwACgkQ1BoTlHzG
+thMShQ/+LucykDzxYmKlw4uvrqU3oEtJtuLEnlH4NAioNADVoW/qC8F0Vq592F5c
+VxGv+qWv4zg5IRyDCgDw4fhmsWj8Ih5IdFszAq4osigkyUAUnDcN7//+h58GMNnN
+6sRAfIr4CYQpzKv0ZKRkAFNqnRZwbrJ6M+WzTj2wn8dqhGCK+58PT8Qg9VcBrPAb
+gMumWVuCs8zUV9jHxdL4VZsUw5D2JpNmFisUl/qQDOwmSmzYbXSp64ehh2ZytUwW
+C+woHHbfq9NEXbWgOLyrbuIMpAGqA/CcPOar7SwUWgUBl0gcAfKysiRpdHNxlki9
+RqMbAOLtoJmpw8HNkp8Yg1K16nMuOux/zK5/PMtPDIbgah+U+TkcFNCI0t8txx7m
+nQlmuDKnGr6qnhHqnz8ZleaTrHoSvrX8cisvSDK+aTT6vUpcD9sU/t4LizxC1nfy
+yLj12PhiEvHFvFwQf14b0DgGwOMKhjOonEcNgGrL2u/OWjKhEJmoEaVz9kfQtNJX
++5GMugRR6x27NvsQMTex/7Ty1FkqdCycsL3ITf3QG4yEN64HBoIUQU5Gcrgte2YR
+1DgKinbs8jx2YvE5XcHDd+gg9qcql3YnhKWxQqAOAUdWmUegAYpyH7ppiVhYtKv7
+LfqrBCGM4QbxxDhkLHFwghYo+x9nZk8/Ri+s9DbJWEhVrMp+HJY=
+=wqoE
 -----END PGP SIGNATURE-----

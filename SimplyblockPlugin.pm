@@ -26,6 +26,10 @@ my $IP_PATTERN = qr/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/;
 my $CONTROLLER_ADDRESS_PATTERN = qr/^traddr=(?<traddr>$IP_PATTERN),trsvcid=(?P<trsvcid>\d{1,5})(,src_addr=(?P<src_addr>$IP_PATTERN))?$/;
 my $VOLUME_NAME_PATTERN = qr/^(?<name>vm-(?<vmid>\d+)-(?<suffix>\S+))$/;
 
+# Cluster states in which volumes can be read, written and provisioned. A
+# degraded cluster has lost redundancy, but still serves I/O.
+my %USABLE_CLUSTER_STATUS = map { $_ => 1 } qw(active degraded);
+
 sub _one {
     my @results = @_;
     if (@results == 0) {
@@ -505,8 +509,8 @@ sub activate_storage {
     my ($class, $storeid, $scfg, $cache) = validate_pos(@_, 1, 1, 1, 1);
 
     my $cluster = _cluster($scfg);
-    if ($cluster->{status} ne "active") {
-        die("Cluster not active");
+    if (!$USABLE_CLUSTER_STATUS{$cluster->{status}}) {
+        die("Cluster not active (status: $cluster->{status})");
     }
 
     return 1;
@@ -522,7 +526,7 @@ sub status {
     my ($class, $storeid, $scfg, $cache) = validate_pos(@_, 1, 1, 1, 1);
 
     my $cluster = _cluster($scfg);
-    my $active = $cluster->{status} eq 'active';
+    my $active = $USABLE_CLUSTER_STATUS{$cluster->{status}} ? 1 : 0;
 
     if ($active && $cluster->{ha}) {
         _check_device_connections($scfg, $cache);

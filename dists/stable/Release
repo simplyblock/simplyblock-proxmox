@@ -6,25 +6,25 @@ Version: 1.0
 Architectures: amd64 arm64
 Components: main
 Description: Simplyblock packages, including the simplyblock storage plugin for Proxmox VE
-Date: Tue, 20 Oct 2026 07:18:52 +0000
+Date: Thu, 22 Oct 2026 10:01:15 +0000
 MD5Sum:
- 0f75e29ecdac3788ff36ea0564cb48f8 13159 main/binary-all/Packages
- b0ddfb0497139594e894bb4236b94e13 2087 main/binary-all/Packages.gz
- 0f75e29ecdac3788ff36ea0564cb48f8 13159 main/binary-amd64/Packages
- b0ddfb0497139594e894bb4236b94e13 2087 main/binary-amd64/Packages.gz
- 0f75e29ecdac3788ff36ea0564cb48f8 13159 main/binary-arm64/Packages
- b0ddfb0497139594e894bb4236b94e13 2087 main/binary-arm64/Packages.gz
+ 7c5caa59483915b4eec792a07e8610c0 14046 main/binary-all/Packages
+ 323b3a789e85c94ce72799fcae63d239 2187 main/binary-all/Packages.gz
+ 7c5caa59483915b4eec792a07e8610c0 14046 main/binary-amd64/Packages
+ 323b3a789e85c94ce72799fcae63d239 2187 main/binary-amd64/Packages.gz
+ 7c5caa59483915b4eec792a07e8610c0 14046 main/binary-arm64/Packages
+ 323b3a789e85c94ce72799fcae63d239 2187 main/binary-arm64/Packages.gz
 SHA1:
- 31d6b883ec6d9d5762d50ac6d47d6d2c3ed425d3 13159 main/binary-all/Packages
- 8c6edb675b07f26d4c2e6dd4cde306264fa5f2c0 2087 main/binary-all/Packages.gz
- 31d6b883ec6d9d5762d50ac6d47d6d2c3ed425d3 13159 main/binary-amd64/Packages
- 8c6edb675b07f26d4c2e6dd4cde306264fa5f2c0 2087 main/binary-amd64/Packages.gz
- 31d6b883ec6d9d5762d50ac6d47d6d2c3ed425d3 13159 main/binary-arm64/Packages
- 8c6edb675b07f26d4c2e6dd4cde306264fa5f2c0 2087 main/binary-arm64/Packages.gz
+ f1cce7dac80a9f23694a11fb0ffced8b0f46ec59 14046 main/binary-all/Packages
+ f17cffbcbeafe9a12fab553cd5b1df04f77252d8 2187 main/binary-all/Packages.gz
+ f1cce7dac80a9f23694a11fb0ffced8b0f46ec59 14046 main/binary-amd64/Packages
+ f17cffbcbeafe9a12fab553cd5b1df04f77252d8 2187 main/binary-amd64/Packages.gz
+ f1cce7dac80a9f23694a11fb0ffced8b0f46ec59 14046 main/binary-arm64/Packages
+ f17cffbcbeafe9a12fab553cd5b1df04f77252d8 2187 main/binary-arm64/Packages.gz
 SHA256:
- f703c39fce50823be851daa6cfb43cd2cb9d9b7d36528093727fa280809769aa 13159 main/binary-all/Packages
- 7895def0e7ec2aa2633f974562ff1c5fe348b194aa2885c77bf7b397a79041ce 2087 main/binary-all/Packages.gz
- f703c39fce50823be851daa6cfb43cd2cb9d9b7d36528093727fa280809769aa 13159 main/binary-amd64/Packages
- 7895def0e7ec2aa2633f974562ff1c5fe348b194aa2885c77bf7b397a79041ce 2087 main/binary-amd64/Packages.gz
- f703c39fce50823be851daa6cfb43cd2cb9d9b7d36528093727fa280809769aa 13159 main/binary-arm64/Packages
- 7895def0e7ec2aa2633f974562ff1c5fe348b194aa2885c77bf7b397a79041ce 2087 main/binary-arm64/Packages.gz
+ 55de7c39d186a68e872ac338bc885bf27b918a5168d52b05211ad3089155246b 14046 main/binary-all/Packages
+ 2236585d396e1b51126aa2b2f8bb66b661dec1beda5b744ae833c5954c2cf032 2187 main/binary-all/Packages.gz
+ 55de7c39d186a68e872ac338bc885bf27b918a5168d52b05211ad3089155246b 14046 main/binary-amd64/Packages
+ 2236585d396e1b51126aa2b2f8bb66b661dec1beda5b744ae833c5954c2cf032 2187 main/binary-amd64/Packages.gz
+ 55de7c39d186a68e872ac338bc885bf27b918a5168d52b05211ad3089155246b 14046 main/binary-arm64/Packages
+ 2236585d396e1b51126aa2b2f8bb66b661dec1beda5b744ae833c5954c2cf032 2187 main/binary-arm64/Packages.gz

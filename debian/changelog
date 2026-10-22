@@ -1,3 +1,9 @@
+simplyblock-proxmox (0.6.3-1) unstable; urgency=medium
+
+  * Accept degraded clusters as active storage
+
+ -- Max Schettler <max@simplyblock.io>  Thu, 22 Sep 2026 11:58:51 +0200
+
 simplyblock-proxmox (0.6.2-1) unstable; urgency=medium
 
   * Fix resize of storage under active use

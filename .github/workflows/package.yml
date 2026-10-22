@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Build package
         uses: jtdor/build-deb-action@v1
@@ -18,7 +18,7 @@ jobs:
           buildpackage-opts: --build=binary --no-sign
 
       - name: Upload package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           path: debian/artifacts/
           name: debian_package

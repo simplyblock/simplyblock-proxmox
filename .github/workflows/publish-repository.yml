@@ -22,17 +22,17 @@ jobs:
       queue: max
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Checkout debian branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: debian
           path: repository
 
       - name: Download package
         if: inputs.add-package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: debian_package
           path: package
@@ -79,7 +79,7 @@ jobs:
           git push origin HEAD:debian
 
       - name: Publish to install.simplyblock.io via FTPS
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.DEBIAN_FTP_USERNAME }}
